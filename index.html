@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Agent Desk</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: transparent;
+      -webkit-app-region: drag;
+    }
+
+    .container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .character {
+      width: 48px;
+      height: 64px;
+      background-image: url('avatar_00.png');
+      background-size: 432px 256px;
+      background-repeat: no-repeat;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      position: relative;
+    }
+
+    /* 스프라이트 프레임 애니메이션 */
+    /* 프레임 계산: x = -((n % 9) * 48), y = -(Math.floor(n / 9) * 64) */
+
+    @keyframes sprite-thinking {
+      /* 프레임 0, 1, 2: 첫 번째 줄 첫 3개 */
+      0% { background-position: 0 0; }
+      33.33% { background-position: -48px 0; }
+      66.66% { background-position: -96px 0; }
+      100% { background-position: 0 0; }
+    }
+
+    @keyframes sprite-working {
+      /* 프레임 3, 4: 첫 번째 줄 4-5개 */
+      0% { background-position: -144px 0; }
+      50% { background-position: -192px 0; }
+      100% { background-position: -144px 0; }
+    }
+
+    @keyframes sprite-error {
+      /* 프레임 5, 6, 7: 첫 번째 줄 6-8개 */
+      0% { background-position: -240px 0; }
+      33.33% { background-position: -288px 0; }
+      66.66% { background-position: -336px 0; }
+      100% { background-position: -240px 0; }
+    }
+
+    @keyframes sprite-alert {
+      /* 프레임 8, 9: 첫 번째 줄 마지막 + 두 번째 줄 첫 번째 */
+      0% { background-position: -384px 0; }
+      50% { background-position: 0 -64px; }
+      100% { background-position: -384px 0; }
+    }
+
+    @keyframes sprite-complete {
+      /* 프레임 10, 11, 12: 두 번째 줄 2-4개 */
+      0% { background-position: -48px -64px; }
+      33.33% { background-position: -96px -64px; }
+      66.66% { background-position: -144px -64px; }
+      100% { background-position: -48px -64px; }
+    }
+
+    @keyframes sprite-start {
+      /* 프레임 13, 14: 두 번째 줄 5-6개 */
+      0% { background-position: -192px -64px; }
+      100% { background-position: -240px -64px; }
+    }
+
+    @keyframes sprite-idle {
+      /* 프레임 15, 16, 17: 두 번째 줄 7-9개 */
+      0% { background-position: -288px -64px; }
+      33.33% { background-position: -336px -64px; }
+      66.66% { background-position: 0 -128px; }
+      100% { background-position: -288px -64px; }
+    }
+
+    /* 상태별 애니메이션 적용 */
+    .state-start .character {
+      animation: sprite-start 1s ease-out;
+    }
+
+    .state-thinking .character,
+    .state-UserPromptSubmit .character,
+    .state-PostToolUse .character {
+      animation: sprite-working 0.5s steps(2) infinite;
+    }
+
+    .state-working .character,
+    .state-PreToolUse .character {
+      animation: sprite-working 0.5s steps(2) infinite;
+    }
+
+    .state-error .character {
+      animation: sprite-error 0.4s steps(4) infinite;
+    }
+
+    .state-alert .character,
+    .state-Notification .character {
+      animation: sprite-alert 0.2s steps(2) infinite;
+    }
+
+    .state-complete .character,
+    .state-Stop .character {
+      animation: sprite-complete 1s steps(2) infinite;
+    }
+
+    .state-Idle .character {
+      animation: sprite-idle 2s steps(2) infinite;
+    }
+
+    /* 말풍선 */
+    .speech-bubble {
+      position: absolute;
+      bottom: calc(50% + 42px); /* 캐릭터 상단(50% - 32px)보다 10px 위에 고정 */
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', 'Dotum', sans-serif;
+      font-size: 12px;
+      color: #333;
+      max-width: 180px;
+      text-align: center;
+      word-wrap: break-word;
+      z-index: 100;
+      transform-origin: bottom center;
+      transition: all 0.2s ease-out;
+    }
+
+    .speech-bubble::before {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 10px solid #333;
+    }
+
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 10px solid rgba(255, 255, 255, 0.95);
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="container">
+    <div class="speech-bubble" id="speech-bubble">Waiting...</div>
+    <div class="character" id="character"></div>
+  </div>
+
+  <script>
+    const container = document.getElementById('container');
+    const speechBubble = document.getElementById('speech-bubble');
+
+    // 상태별 컨테이너 클래스
+    const stateClasses = {
+      'Start': 'state-start',
+      'UserPromptSubmit': 'state-thinking',
+      'PostToolUse': 'state-thinking',
+      'PreToolUse': 'state-working',
+      'Stop': 'state-complete',
+      'Error': 'state-error',
+      'Notification': 'state-alert',
+      'Idle': 'state-Idle',
+      'Thinking': 'state-thinking',
+      'Working': 'state-working',
+      'Complete': 'state-complete',
+      'Alert': 'state-alert'
+    };
+
+    // 상태 업데이트
+    function updateState(state, message) {
+      console.log(`상태 변경: ${state}, 메시지: ${message}`);
+
+      // 이전 상태 클래스 제거
+      container.className = 'container';
+
+      // 새로운 상태 클래스 추가
+      const newClass = stateClasses[state] || 'state-complete';
+      container.classList.add(newClass);
+
+      // 말풍선 업데이트 (상태 라벨만 표시)
+      const stateLabels = {
+        'Start': 'Starting...',
+        'UserPromptSubmit': 'Working...',
+        'PreToolUse': 'Working...',
+        'PostToolUse': 'Working...',
+        'Stop': 'Done!',
+        'Error': 'Error!',
+        'Notification': 'Notification',
+        'Idle': 'Idle',
+        'Thinking': 'Working...',
+        'Working': 'Working...',
+        'Complete': 'Complete!',
+        'Alert': 'Alert!'
+      };
+      speechBubble.textContent = stateLabels[state] || state;
+    }
+
+    // IPC로 상태 업데이트 수신
+    if (window.electronAPI) {
+      console.log('Electron API 로드됨');
+      window.electronAPI.onStateUpdate((data) => {
+        console.log('상태 업데이트 수신:', data);
+        const { state, message } = data;
+        updateState(state, message);
+      });
+    } else {
+      console.log('Electron API를 찾을 수 없음');
+    }
+  </script>
+</body>
+</html>

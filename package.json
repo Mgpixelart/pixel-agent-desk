@@ -1,0 +1,16 @@
+{
+  "name": "pixel-agent-desk",
+  "version": "1.0.0",
+  "description": "Claude CLI 작업 상태를 픽셀 캐릭터로 시각화",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "keywords": ["electron", "pixel-art", "claude-cli"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.0.0"
+  }
+}
