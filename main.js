@@ -101,13 +101,26 @@ app.commandLine.appendSwitch('disable-software-rasterizer');
 const HOOK_SERVER_PORT = 47821;
 
 function setupClaudeHooks() {
+  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
   try {
-    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
     let settings = {};
+    let parseOk = false;
+
     if (fs.existsSync(settingsPath)) {
-      const rawContent = fs.readFileSync(settingsPath, 'utf8').replace(/^\uFEFF/, '');
-      settings = JSON.parse(rawContent);
+      try {
+        const rawContent = fs.readFileSync(settingsPath, 'utf8').replace(/^\uFEFF/, '');
+        settings = JSON.parse(rawContent);
+        parseOk = true;
+      } catch (parseErr) {
+        // settings.json이 손상된 경우 — 기존 파일은 백업하고 새로 시작
+        debugLog(`[Main] settings.json parse error: ${parseErr.message}. Backing up and resetting hooks only.`);
+        try {
+          fs.copyFileSync(settingsPath, settingsPath + '.corrupt_backup');
+        } catch (e) { }
+        settings = {};
+      }
     }
+
     if (!settings.hooks) settings.hooks = {};
 
     const hookUrl = `http://localhost:${HOOK_SERVER_PORT}/hook`;
@@ -141,7 +154,10 @@ function setupClaudeHooks() {
     };
     upsertCmdHook('SessionEnd', endCmd);
 
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 4));
+    // Atomic Write: 먼저 .tmp에 쓰고 rename (Claude CLI 동시 쓰기 충돌 방지)
+    const tmpPath = settingsPath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 4), 'utf-8');
+    fs.renameSync(tmpPath, settingsPath);
     debugLog(`[Main] Registered HTTP hooks (port ${HOOK_SERVER_PORT}) to settings.json`);
   } catch (e) {
     debugLog(`[Main] Failed to setup hooks: ${e.message}`);
