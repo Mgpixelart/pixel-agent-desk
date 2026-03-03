@@ -1,9 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execSync } = require('child_process');
 
-const LOG_FILE = path.join('D:/projects/pixel-agent-desk-master', 'hook_debug.log');
+const LOG_FILE = path.join(__dirname, 'hook_debug.log');
 const PID_FILE = path.join(os.homedir(), '.claude', 'agent_pids.json');
 
 const chunks = [];
@@ -17,36 +16,8 @@ process.stdin.on('end', () => {
         const sessionId = data.session_id || data.sessionId;
         const cwd = data.cwd;
 
-        // 이 스크립트를 실행한 부모 프로세스의 PID (Claude CLI 또는 그 쉘)
-        let parentPid = process.ppid;
-
-        // Windows에서, 우리를 실행시킨 진짜 Claude CLI(node.exe)의 PID를 찾음
-        // (cmd.exe 등 래퍼 쉘을 우회하기 위함)
-        try {
-            if (process.platform === 'win32') {
-                const { spawnSync } = require('child_process');
-                const psScript = `
-                    $id = ${parentPid};
-                    for ($i=0; $i -lt 5; $i++) {
-                        $p = Get-CimInstance Win32_Process -Filter "ProcessId=$id" -ErrorAction SilentlyContinue
-                        if (-not $p) { break }
-                        if ($p.CommandLine -match 'claude-code|cli\\.js|claude') {
-                            Write-Output $p.ProcessId
-                            exit 0
-                        }
-                        $id = $p.ParentProcessId
-                        if (-not $id -or $id -eq 0) { break }
-                    }
-                    Write-Output 0
-                `;
-                const res = spawnSync('powershell.exe', ['-NoProfile', '-Command', psScript.replace(/\n/g, ' ')]);
-                const outText = res.stdout ? res.stdout.toString().trim() : '';
-                const detectedPid = parseInt(outText, 10);
-                if (detectedPid > 0) {
-                    parentPid = detectedPid;
-                }
-            }
-        } catch (e) { }
+        // PID 트리 추적은 Windows에서 구조적으로 불안정하므로 제거
+        // 대신 세션 정보(cwd)만 기록하고, main.js가 직접 시스템 프로세스를 스캔
 
         // 기존 PID 목록 읽기
         let pidsInfo = {};
@@ -54,17 +25,20 @@ process.stdin.on('end', () => {
             try { pidsInfo = JSON.parse(fs.readFileSync(PID_FILE, 'utf-8')); } catch (e) { }
         }
 
-        // 현재 세션의 PID와 타임스탬프, CWD 저장
+        // 세션 정보 저장 (pid 대신 cwd 기반으로 매칭할 것)
         pidsInfo[sessionId] = {
-            pid: parentPid,
+            pid: 0,  // main.js가 직접 스캔하여 채움
             cwd: cwd,
             timestamp: new Date().toISOString()
         };
 
-        fs.writeFileSync(PID_FILE, JSON.stringify(pidsInfo, null, 2), 'utf-8');
-        fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] (START) Saved PID ${parentPid} for session ${sessionId}\n`, 'utf-8');
+        // Atomic Write
+        const tempFile = PID_FILE + '.tmp';
+        fs.writeFileSync(tempFile, JSON.stringify(pidsInfo, null, 2), 'utf-8');
+        fs.renameSync(tempFile, PID_FILE);
+        fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] (START) Saved session ${sessionId} cwd=${cwd}\n`, 'utf-8');
 
-        process.stderr.write(`[sessionstart_hook] OK — Tracked PID ${parentPid}\n`);
+        process.stderr.write(`[sessionstart_hook] OK — session ${sessionId}\n`);
     } catch (err) {
         fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] (START) ERROR: ${err.message}\n`, 'utf-8');
         process.stderr.write(`[sessionstart_hook] ERROR: ${err.message}\n`);

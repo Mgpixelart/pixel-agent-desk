@@ -136,42 +136,120 @@ function setupClaudeHooks() {
 
 function startPidMonitoring() {
   const pidFile = path.join(os.homedir(), '.claude', 'agent_pids.json');
-  setInterval(() => {
-    if (!agentManager || !fs.existsSync(pidFile)) return;
+  const { execFile } = require('child_process');
+  const SCAN_INTERVAL = 5000;          // 5초마다 스캔
+  const GRACE_PERIOD_MS = 15000;       // 에이전트 등록 후 15초간 보호
+  const MAX_ABSENT_COUNT = 3;          // 3회 연속 미발견 시 DEAD 판정
+  const absentCounts = new Map();      // agentId → 연속 미발견 횟수
 
+  // agent_pids.json이 없으면 빈 파일로 자동 생성
+  if (!fs.existsSync(pidFile)) {
     try {
-      const pidsInfo = JSON.parse(fs.readFileSync(pidFile, 'utf8'));
-      const agents = agentManager.getAllAgents();
-
-      agents.forEach(agent => {
-        const info = pidsInfo[agent.id];
-        if (info && info.pid) {
-          try {
-            process.kill(info.pid, 0); // 살아있으면 아무 일 없고, 죽었으면 에러 발생
-          } catch (e) {
-            // 프로세스가 없거나 죽음
-            debugLog(`[Main] Process PID ${info.pid} for agent ${agent.id.slice(0, 8)} is DEAD. Removing...`);
-
-            // logMonitor가 이 로그를 읽고 다시 살려내는 것(좀비 현상)을 막기 위해 JSONL 끝에 SessionEnd를 기록
-            if (agent.jsonlPath && fs.existsSync(agent.jsonlPath)) {
-              try {
-                fs.appendFileSync(agent.jsonlPath, JSON.stringify({
-                  type: "system", subtype: "SessionEnd", sessionId: agent.id, timestamp: new Date().toISOString()
-                }) + '\n');
-              } catch (e) { }
-            }
-
-            agentManager.removeAgent(agent.id);
-            // 목록에서도 삭제
-            delete pidsInfo[agent.id];
-            fs.writeFileSync(pidFile, JSON.stringify(pidsInfo, null, 2));
-          }
-        }
-      });
+      fs.writeFileSync(pidFile, '{}', 'utf-8');
+      debugLog('[Main] Created agent_pids.json (empty)');
     } catch (e) {
-      // JSON 파싱 에러(쓰기 도중) 무시
+      debugLog(`[Main] Failed to create agent_pids.json: ${e.message}`);
     }
-  }, 1000); // 1초 주기로 체크 (단순 OS 프로세스 확인이라 부하 거의 없음)
+  }
+
+  // 시스템에서 claude-code CLI node.exe 프로세스 목록을 가져오는 함수
+  function scanClaudeProcesses(callback) {
+    const psCmd = `Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*claude-code*cli.js*' } | ForEach-Object { $_.ProcessId }`;
+    execFile('powershell.exe', ['-NoProfile', '-Command', psCmd], { timeout: 8000 }, (err, stdout, stderr) => {
+      if (err) {
+        debugLog(`[Main] Scan error: ${err.message}`);
+        callback([]);
+        return;
+      }
+      const pids = stdout.trim().split('\n')
+        .map(l => parseInt(l.trim(), 10))
+        .filter(p => p > 0);
+      callback(pids);
+    });
+  }
+
+  setInterval(() => {
+    if (!agentManager) return;
+    const agents = agentManager.getAllAgents();
+    if (agents.length === 0) return;
+
+    scanClaudeProcesses((livePids) => {
+      debugLog(`[Main] Scan: ${livePids.length} claude proc(s), ${agents.length} agent(s)`);
+
+      // 활성 에이전트 중 Grace Period 제외한 것만 체크 대상
+      const checkable = agents.filter(a => {
+        if (a.firstSeen && (Date.now() - a.firstSeen < GRACE_PERIOD_MS)) {
+          absentCounts.delete(a.id);
+          return false;
+        }
+        return true;
+      });
+
+      if (checkable.length === 0) return;
+
+      // 에이전트 수 ≤ 프로세스 수 → 모두 살아있다고 판단
+      if (livePids.length >= checkable.length) {
+        for (const a of checkable) absentCounts.delete(a.id);
+        return;
+      }
+
+      // 에이전트 수 > 프로세스 수 → 초과분을 제거해야 함
+      // JSONL 파일 mtime 기준: 터미널이 닫히면 파일 갱신이 즉시 멈추므로
+      // mtime이 가장 오래된 에이전트가 죽은 것일 확률이 높음
+      const excessCount = checkable.length - livePids.length;
+
+      // JSONL mtime 가져오기 (파일이 없으면 0)
+      const withMtime = checkable.map(a => {
+        let mtime = 0;
+        try {
+          if (a.jsonlPath) mtime = fs.statSync(a.jsonlPath).mtimeMs;
+        } catch (e) { }
+        return { agent: a, mtime };
+      });
+
+      // mtime 오름차순 (가장 오래된 것 = 죽었을 확률 높음)
+      withMtime.sort((a, b) => a.mtime - b.mtime);
+
+      const suspect = withMtime.slice(0, excessCount).map(w => w.agent);
+      const alive = withMtime.slice(excessCount).map(w => w.agent);
+
+      for (const a of alive) absentCounts.delete(a.id);
+
+      for (const agent of suspect) {
+        const count = (absentCounts.get(agent.id) || 0) + 1;
+        absentCounts.set(agent.id, count);
+
+        if (count < MAX_ABSENT_COUNT) {
+          debugLog(`[Main] Agent ${agent.id.slice(0, 8)} suspect (excess), absent ${count}/${MAX_ABSENT_COUNT}`);
+          continue;
+        }
+
+        // ── 3회 연속: DEAD 확정 ──
+        debugLog(`[Main] Agent ${agent.id.slice(0, 8)} DEAD — excess agent removed after ${count} scans`);
+        absentCounts.delete(agent.id);
+
+        // JSONL에 SessionEnd 기록 (좀비 방지)
+        if (agent.jsonlPath && fs.existsSync(agent.jsonlPath)) {
+          try {
+            fs.appendFileSync(agent.jsonlPath, JSON.stringify({
+              type: "system", subtype: "SessionEnd", sessionId: agent.id, timestamp: new Date().toISOString()
+            }) + '\n');
+          } catch (e) { }
+        }
+
+        agentManager.removeAgent(agent.id);
+
+        // agent_pids.json에서도 삭제
+        try {
+          const pidsInfo = JSON.parse(fs.readFileSync(pidFile, 'utf8'));
+          delete pidsInfo[agent.id];
+          const tmpFile = pidFile + '.tmp';
+          fs.writeFileSync(tmpFile, JSON.stringify(pidsInfo, null, 2));
+          fs.renameSync(tmpFile, pidFile);
+        } catch (e) { }
+      }
+    });
+  }, SCAN_INTERVAL);
 }
 
 app.whenReady().then(() => {

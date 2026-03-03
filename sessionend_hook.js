@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const LOG_FILE = path.join('D:/projects/pixel-agent-desk-master', 'hook_debug.log');
+const LOG_FILE = path.join(__dirname, 'hook_debug.log');
 
 const chunks = [];
 process.stdin.on('data', d => chunks.push(d));
