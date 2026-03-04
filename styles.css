@@ -163,28 +163,7 @@ body {
   white-space: nowrap;
   letter-spacing: -0.02em;
   position: relative;
-  cursor: help;
-}
-
-/* 즉각 반응형 커스텀 툴팁 */
-.project-tag:hover::after {
-  content: attr(data-full-path);
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 4px;
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-width: 150px;
-  z-index: 1000;
-  font-size: 8px;
-  text-align: center;
-  pointer-events: none;
+  /* 커스텀 툴팁 제거 후 기본 title 속성 사용 (오버플로우 충돌 대비) */
 }
 
 .type-tag {

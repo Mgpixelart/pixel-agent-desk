@@ -221,7 +221,7 @@ function createAgentCard(agent) {
   const projectTag = document.createElement('span');
   projectTag.className = 'project-tag';
   projectTag.textContent = agent.projectPath ? agent.projectPath.split(/[\\/]/).pop() : 'Default';
-  projectTag.setAttribute('data-full-path', agent.projectPath || 'No Path'); // CSS 툴팁용 텍스트
+  projectTag.title = agent.projectPath || ''; // 긴 경로 네이티브 툴팁으로 표시
 
   const typeTag = document.createElement('span');
   typeTag.className = `type-tag ${typeClass}`;
