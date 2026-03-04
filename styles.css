@@ -191,39 +191,38 @@ body {
   display: inline-block;
   font-family: 'Pretendard Variable', sans-serif;
   font-size: 8.5px;
-  /* 기존 7px에서 확대 */
-  font-weight: 900;
+  font-weight: 800;
+  /* 900 -> 800 변경해서 약간 부드럽게 */
   text-transform: uppercase;
-  padding: 3px 7px;
-  /* 패딩을 늘려 분명한 박스로 보이게 처리 */
-  border-radius: 5px;
-  /* 라운드 처리 */
+  padding: 1px 5px;
+  /* 박스 크기 슬림하게 축소 */
+  border-radius: 4px;
   letter-spacing: 0.05em;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  /* 글씨 그림자 강화 */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  /* 박스 그림자 강화로 패널처럼 보이게 */
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+  /* 그림자 완화 */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  /* 박스 그림자 완화 */
   margin-top: 2px;
 }
 
-/* 타입별 스타일 - 명확하게 보일 수 있도록 완전히 불투명한 쨍한 색상으로 지정 */
+/* 타입별 스타일 - 너무 튀지 않게 조화로운 톤다운 색상으로 변경 */
 .type-tag.type-main {
-  background: #E53935;
-  /* 강렬한 레드 (Main) */
-  border: 1px solid #B71C1C;
+  background: #d46b78;
+  /* 부드러운 장미색 (Main) */
+  border: 1px solid #b5535e;
 }
 
 .type-tag.type-sub {
-  background: #8E24AA;
-  /* 진한 퍼플 (Sub) */
-  border: 1px solid #4A148C;
+  background: #996fb8;
+  /* 부드러운 라벤더 퍼플 (Sub) */
+  border: 1px solid #7c5496;
 }
 
 .type-tag.type-team {
-  background: #1E88E5;
-  /* 쨍한 블루 (Team) */
-  border: 1px solid #0D47A1;
+  background: #6098d6;
+  /* 맑은 스카이 블루 (Team) */
+  border: 1px solid #4a7cb0;
 }
 
 /* 타입별 카드 하이라이트 (선택사항: 외곽선으로 구분) */
