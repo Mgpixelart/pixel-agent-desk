@@ -176,20 +176,36 @@ const hookSchema = {
 
 ### P1 - 중요 (다음 주)
 
-**5. token_usage 추적** (8시간)
+**5. JSONL 세션 로그 분석** (8시간)
+```javascript
+// mission-control-main 방식 참고
+async function analyzeSession(jsonlPath) {
+  const content = fs.readFileSync(jsonlPath, 'utf-8');
+  const lines = content.split('\n');
+
+  for (const line of lines) {
+    const event = JSON.parse(line);
+    if (event.tool_response?.token_usage) {
+      // 토큰 사용량 추적
+      totalTokens += event.tool_response.token_usage.input_tokens;
+      totalTokens += event.tool_response.token_usage.output_tokens;
+    }
+  }
+}
+```
+- transcript_path로 JSONL 파일 읽기
+- 토큰 사용량 추출
+- 에이전트별 비용 추적
+
+**6. token_usage 추적** (6시간)
 - PostToolUse 훅에서 token_usage 추출
 - 에이전트별 토큰 사용량 집계
 - 비용 추적 기능 구현
 
-**6. UserPromptSubmit 훅 도입** (6시간)
+**7. UserPromptSubmit 훅 도입** (4시간)
 - 프롬프트 유효성 검사
 - 악성 프롬프트 차단
 - 프롬프트 품질 메트릭
-
-**7. state.json 백업 메커니즘** (4시간)
-- 단일 실패점(SPOF) 해결
-- 백업 파일 자동 생성
-- 복구 로직 강화
 
 ### P2 - 개선 (2주 이내)
 
@@ -217,11 +233,11 @@ const hookSchema = {
 
 ### Week 2-3: P1 기능 (18시간)
 
-| 작업 | 시간 | 담당 | 상태 |
-|------|------|------|------|
-| token_usage 추적 | 8h | backend | 예정 |
-| UserPromptSubmit 도입 | 6h | backend | 예정 |
-| state.json 백업 | 4h | backend | 예정 |
+| 작업 | 시간 | 담당 | 참고 | 상태 |
+|------|------|------|------|------|
+| JSONL 세션 로그 분석 | 8h | backend | mission-control-main scanner | 예정 |
+| token_usage 추적 | 6h | backend | tool_response.token_usage | 예정 |
+| UserPromptSubmit 도입 | 4h | backend | - | 예정 |
 
 ### Week 4-5: P2 개선 (22시간)
 
@@ -239,6 +255,9 @@ const hookSchema = {
 3. **avatar_lifecycle_analysis.md** - 아바타 생명주기 전 과정
 4. **sqlite_vs_json_evaluation.md** - SQLite 도입 ❌ 권장
 5. **mission_control_architecture_analysis.md** (46KB) - 참고 프로젝트 분석
+   - **JSONL 스캐너 방식 발견** (claude-sessions.ts 308줄)
+   - transcript_path 활용 방법
+   - token_usage 추출 방법
 6. **claude_hooks_deep_dive.md** (32KB) - 실제 훅 JSON 491개 분석
 7. **integration_roadmap.md** (37KB) - 통합 실행 계획
 
