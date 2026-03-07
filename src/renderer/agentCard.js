@@ -112,6 +112,56 @@ function updateAgentState(agentId, container, agentOrState) {
   agentStates.set(agentId, agentState);
 }
 
+// --- Satellite (mini avatar) DOM creators ---
+
+function createSatelliteTray() {
+  const tray = document.createElement('div');
+  tray.className = 'satellite-tray';
+  return tray;
+}
+
+function createMiniAvatar(agent) {
+  const mini = document.createElement('div');
+  mini.className = 'mini-avatar';
+  mini.dataset.agentId = agent.id;
+  mini.dataset.state = (agent.state || 'waiting').toLowerCase();
+
+  // Assign avatar sprite (50% scale background)
+  let assignedAvatar = agentAvatars.get(agent.id);
+  if (!assignedAvatar) {
+    if (agent.avatarIndex !== undefined && agent.avatarIndex !== null && AVATAR_FILES[agent.avatarIndex]) {
+      assignedAvatar = AVATAR_FILES[agent.avatarIndex];
+    } else {
+      assignedAvatar = avatarFromAgentId(agent.id);
+    }
+    agentAvatars.set(agent.id, assignedAvatar);
+  }
+  if (assignedAvatar) {
+    mini.style.backgroundImage = `url('./public/characters/${assignedAvatar}')`;
+  }
+
+  // Tooltip
+  const label = agent.displayName || agent.agentType || 'Sub';
+  const stateLabel = agent.state || 'Waiting';
+  mini.title = `${label} — ${stateLabel}`;
+
+  // Click → focus terminal
+  mini.onclick = async (e) => {
+    e.stopPropagation();
+    if (window.electronAPI && window.electronAPI.focusTerminal) {
+      await window.electronAPI.focusTerminal(agent.id);
+    }
+  };
+
+  return mini;
+}
+
+function createChildBadge() {
+  const badge = document.createElement('span');
+  badge.className = 'child-count-badge';
+  return badge;
+}
+
 function createAgentCard(agent) {
   const card = document.createElement('div');
   card.className = 'agent-card';
@@ -184,11 +234,19 @@ function createAgentCard(agent) {
   timerEl.className = 'agent-timer';
   timerEl.style.visibility = 'hidden';
 
+  // Satellite tray (for mini child avatars)
+  const satelliteTray = createSatelliteTray();
+
+  // Child count badge (absolute, hidden by default)
+  const childBadge = createChildBadge();
+
   // Assemble card
   card.appendChild(bubble);
   card.appendChild(timerEl);
   card.appendChild(character);
+  card.appendChild(satelliteTray);
   card.appendChild(nameBadge);
+  card.appendChild(childBadge);
 
   // Terminal focus button
   const focusBtn = document.createElement('button');

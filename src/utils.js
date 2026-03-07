@@ -44,41 +44,39 @@ function getWindowSizeForAgents(agentsOrCount) {
 
   const CARD_W = 80;
   const GAP = 10;
-  const OUTER = 100; // Account for team design margins
-  const ROW_H = 170;
+  const OUTER = 100;
   const BASE_H = 170;
+  const SATELLITE_EXTRA_H = 40; // Extra height per parent that has satellite children
   const maxCols = 10;
 
   if (agents.length > 0) {
-    const groups = {};
+    // Build a set of active agent IDs for parent lookup
+    const agentIds = new Set(agents.map(a => a.id));
+
+    // Satellite children: have parentId and parent exists in the list
+    const isSatellite = (a) => {
+      return !!(a.parentId && (a.isSubagent || (a.isTeammate && a.parentId)) && agentIds.has(a.parentId));
+    };
+
+    // Count only grid-level cards (exclude satellites)
+    const gridAgents = agents.filter(a => !isSatellite(a));
+    const gridCount = gridAgents.length;
+
+    if (gridCount <= 1 && agents.length <= 1) return { width: 150, height: 150 };
+
+    // Count parents that have satellite children (need extra height)
+    const parentsWithSatellites = new Set();
     agents.forEach(a => {
-      const p = a.projectPath || 'default';
-      if (!groups[p]) groups[p] = [];
-      groups[p].push(a);
+      if (isSatellite(a)) {
+        parentsWithSatellites.add(a.parentId);
+      }
     });
 
-    let teamRows = 0;
-    let soloCount = 0;
-    let maxColsInRow = 0;
+    const cols = Math.min(Math.max(gridCount, 1), maxCols);
+    const rows = Math.ceil(Math.max(gridCount, 1) / maxCols);
 
-    for (const group of Object.values(groups)) {
-      const isTeam = group.some(a => a.isSubagent || a.isTeammate);
-      if (isTeam) {
-        teamRows += Math.ceil(group.length / maxCols);
-        maxColsInRow = Math.max(maxColsInRow, Math.min(group.length, maxCols));
-      } else {
-        soloCount += group.length;
-      }
-    }
-
-    const soloRows = Math.ceil(soloCount / maxCols);
-    if (soloCount > 0) {
-      maxColsInRow = Math.max(maxColsInRow, Math.min(soloCount, maxCols));
-    }
-
-    const totalRows = teamRows + soloRows;
-    const width = Math.max(220, maxColsInRow * CARD_W + (maxColsInRow - 1) * GAP + OUTER);
-    const height = BASE_H + Math.max(0, totalRows - 1) * ROW_H + (teamRows * 30); // Account for team group padding
+    const width = Math.max(220, cols * CARD_W + (cols - 1) * GAP + OUTER);
+    const height = BASE_H + Math.max(0, rows - 1) * 170 + (parentsWithSatellites.size * SATELLITE_EXTRA_H);
 
     return { width, height };
   }
@@ -88,7 +86,7 @@ function getWindowSizeForAgents(agentsOrCount) {
   const rows = Math.ceil(count / maxCols);
 
   const width = Math.max(220, cols * CARD_W + (cols - 1) * GAP + OUTER);
-  const height = BASE_H + (rows - 1) * ROW_H;
+  const height = BASE_H + (rows - 1) * 170;
 
   return { width, height };
 }

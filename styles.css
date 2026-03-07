@@ -290,6 +290,10 @@ html {
   margin-bottom: 2px;
   -webkit-app-region: drag;
   pointer-events: auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Per-type styles - harmonious toned-down colors that don't stand out too much */
@@ -1047,6 +1051,105 @@ html {
   outline: 2px solid #6200ea;
   outline-offset: 2px;
   border-radius: 8px;
+}
+
+/* ════════════════════════════════════════
+   Satellite Tray — Mini Avatars for Sub/Team children
+════════════════════════════════════════ */
+
+/* Container for mini avatars inside parent card */
+.satellite-tray {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  max-width: 78px;
+  min-height: 0;
+  padding: 0 1px;
+}
+
+/* Mini avatar sprite (50% of 48x64 = 24x32) */
+.mini-avatar {
+  width: 24px;
+  height: 32px;
+  background-size: 216px 128px; /* 50% of 432x256 */
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 2px solid #94a3b8;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: border-color 0.3s ease, transform 0.15s ease;
+  animation: satellite-enter 0.25s ease-out;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.mini-avatar:hover {
+  transform: scale(1.15);
+  z-index: 5;
+}
+
+.mini-avatar:active {
+  transform: scale(0.92);
+}
+
+/* Mini avatar state-based border colors */
+.mini-avatar[data-state="working"] { border-color: #f97316; }
+.mini-avatar[data-state="thinking"] { border-color: #8b5cf6; }
+.mini-avatar[data-state="done"] { border-color: #22c55e; }
+.mini-avatar[data-state="waiting"] { border-color: #94a3b8; }
+.mini-avatar[data-state="help"],
+.mini-avatar[data-state="error"] { border-color: #ef4444; }
+.mini-avatar[data-state="offline"] { border-color: #475569; filter: grayscale(80%) opacity(0.5); }
+
+/* Child count badge (absolute in parent card) */
+.child-count-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  background: #7c3aed;
+  border-radius: 8px;
+  padding: 1px 4px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.3;
+  z-index: 15;
+  pointer-events: none;
+  display: none; /* shown only when count > 0 */
+}
+
+/* Satellite enter animation */
+@keyframes satellite-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Satellite exit animation */
+.mini-avatar.removing {
+  animation: satellite-exit 0.2s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes satellite-exit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.3);
+  }
 }
 
 /* ════════════════════════════════════════

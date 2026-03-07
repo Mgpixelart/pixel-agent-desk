@@ -2,28 +2,169 @@
  * Agent Grid — add/update/remove Agent, updateGridLayout, resize
  */
 
-function addAgent(agent) {
-  if (document.querySelector(`[data-agent-id="${agent.id}"]`)) {
-    return;
+// --- Satellite avatar helpers ---
+
+const MINI_AVATAR_SCALE = 0.5;
+
+/** Check if an agent should be rendered as a satellite (mini avatar inside parent) */
+function isSatelliteCandidate(agent) {
+  return !!(agent && (agent.isSubagent || (agent.isTeammate && agent.parentId)) && agent.parentId);
+}
+
+/** Find the parent card DOM element for a given agent */
+function findParentCard(agent) {
+  if (!agent || !agent.parentId) return null;
+  return document.querySelector(`[data-agent-id="${agent.parentId}"]`);
+}
+
+/** Add a mini avatar into the parent card's satellite tray */
+function addSatelliteAvatar(parentCard, agent) {
+  const tray = parentCard.querySelector('.satellite-tray');
+  if (!tray) return;
+
+  // Avoid duplicates
+  if (tray.querySelector(`[data-agent-id="${agent.id}"]`)) return;
+
+  const mini = createMiniAvatar(agent);
+  tray.appendChild(mini);
+
+  // Start sprite animation at 50% scale
+  const config = stateConfig[agent.state] || stateConfig['Waiting'];
+  playAnimation(agent.id, mini, config.anim, MINI_AVATAR_SCALE);
+
+  updateChildBadge(parentCard);
+}
+
+/** Update a satellite mini avatar's state (border color, tooltip, animation) */
+function updateSatelliteAvatar(parentCard, agent) {
+  const tray = parentCard.querySelector('.satellite-tray');
+  if (!tray) return false;
+
+  const mini = tray.querySelector(`[data-agent-id="${agent.id}"]`);
+  if (!mini) return false;
+
+  const state = (agent.state || 'Waiting').toLowerCase();
+  mini.dataset.state = state;
+
+  // Update tooltip
+  const label = agent.displayName || agent.agentType || 'Sub';
+  mini.title = `${label} — ${agent.state || 'Waiting'}`;
+
+  // Update animation
+  const config = stateConfig[agent.state] || stateConfig['Waiting'];
+  playAnimation(agent.id, mini, config.anim, MINI_AVATAR_SCALE);
+
+  return true;
+}
+
+/** Remove a satellite mini avatar from the parent card */
+function removeSatelliteAvatar(parentCard, agentId) {
+  const tray = parentCard.querySelector('.satellite-tray');
+  if (!tray) return false;
+
+  const mini = tray.querySelector(`[data-agent-id="${agentId}"]`);
+  if (!mini) return false;
+
+  // Stop animation
+  animationManager.stop(agentId);
+
+  // Exit animation then remove
+  mini.classList.add('removing');
+  setTimeout(() => {
+    mini.remove();
+    updateChildBadge(parentCard);
+  }, 200);
+
+  return true;
+}
+
+/** Update the child count badge on a parent card */
+function updateChildBadge(parentCard) {
+  const badge = parentCard.querySelector('.child-count-badge');
+  if (!badge) return;
+
+  const tray = parentCard.querySelector('.satellite-tray');
+  const count = tray ? tray.querySelectorAll('.mini-avatar:not(.removing)').length : 0;
+
+  if (count > 0) {
+    badge.textContent = `x${count}`;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
   }
+}
 
-  const card = createAgentCard(agent);
-  agentGrid.appendChild(card);
+/** Migrate existing standalone cards into satellites when a parent arrives late */
+function migrateSatellites(parentCard, parentId) {
+  // Find all standalone cards that should be children of this parent
+  const cards = Array.from(agentGrid.querySelectorAll('.agent-card'));
+  let migrated = false;
 
+  cards.forEach(card => {
+    const childId = card.dataset.agentId;
+    if (childId === parentId) return; // skip self
+
+    const agentData = window.lastAgents?.find(a => a.id === childId);
+    if (!agentData || agentData.parentId !== parentId) return;
+    if (!isSatelliteCandidate(agentData)) return;
+
+    // Clean up the standalone card
+    animationManager.stop(childId);
+    const state = agentStates.get(childId);
+    if (state) {
+      if (state.interval) clearInterval(state.interval);
+      if (state.timerInterval) clearInterval(state.timerInterval);
+    }
+    agentStates.delete(childId);
+    card.remove();
+
+    // Add as satellite
+    addSatelliteAvatar(parentCard, agentData);
+    migrated = true;
+  });
+
+  return migrated;
+}
+
+function addAgent(agent) {
   if (!window.lastAgents) window.lastAgents = [];
   if (!window.lastAgents.some(a => a.id === agent.id)) {
     window.lastAgents.push(agent);
   }
 
+  // Check for existing DOM (satellite or card)
+  if (document.querySelector(`[data-agent-id="${agent.id}"]`)) {
+    return;
+  }
+  // Also check if already exists as mini-avatar inside a satellite tray
+  if (document.querySelector(`.mini-avatar[data-agent-id="${agent.id}"]`)) {
+    return;
+  }
+
+  // Route as satellite if parent card exists
+  if (isSatelliteCandidate(agent)) {
+    const parentCard = findParentCard(agent);
+    if (parentCard) {
+      addSatelliteAvatar(parentCard, agent);
+      // No grid reflow needed — satellite is inside parent card
+      return;
+    }
+    // Fallback: parent not yet arrived, create standalone card
+  }
+
+  const card = createAgentCard(agent);
+  agentGrid.appendChild(card);
+
   updateAgentState(agent.id, card, agent);
+
+  // If this is a parent, check if children arrived earlier and migrate them
+  migrateSatellites(card, agent.id);
+
   updateGridLayout();
   requestDynamicResize();
 }
 
 function updateAgent(agent) {
-  const card = document.querySelector(`[data-agent-id="${agent.id}"]`);
-  if (!card) return;
-
   // Capture previous data BEFORE updating lastAgents
   const prevData = window.lastAgents?.find(a => a.id === agent.id);
 
@@ -36,6 +177,17 @@ function updateAgent(agent) {
     }
   }
 
+  // Try updating as satellite first
+  if (isSatelliteCandidate(agent)) {
+    const parentCard = findParentCard(agent);
+    if (parentCard && updateSatelliteAvatar(parentCard, agent)) {
+      return; // Updated as satellite — no grid reflow
+    }
+  }
+
+  const card = document.querySelector(`[data-agent-id="${agent.id}"]`);
+  if (!card) return;
+
   // Detect agent type change (e.g., Main created via auto-create then switched to Sub via SubagentStart)
   const wasSubagent = card.classList.contains('is-subagent');
   const wasTeammate = card.classList.contains('is-teammate');
@@ -46,6 +198,27 @@ function updateAgent(agent) {
     prevData.teamName !== agent.teamName
   );
 
+  // Type changed to satellite candidate: migrate card → satellite
+  if ((typeChanged || relationshipChanged) && isSatelliteCandidate(agent)) {
+    const parentCard = findParentCard(agent);
+    if (parentCard) {
+      // Remove standalone card and add as satellite
+      animationManager.stop(agent.id);
+      const state = agentStates.get(agent.id);
+      if (state) {
+        if (state.interval) clearInterval(state.interval);
+        if (state.timerInterval) clearInterval(state.timerInterval);
+      }
+      agentStates.delete(agent.id);
+      card.remove();
+
+      addSatelliteAvatar(parentCard, agent);
+      updateGridLayout();
+      requestDynamicResize();
+      return;
+    }
+  }
+
   updateAgentState(agent.id, card, agent);
 
   if (typeChanged || relationshipChanged) {
@@ -55,8 +228,42 @@ function updateAgent(agent) {
 }
 
 function removeAgent(data) {
+  // Try removing as satellite first
+  const agentData = window.lastAgents?.find(a => a.id === data.id);
+  if (agentData && isSatelliteCandidate(agentData)) {
+    const parentCard = findParentCard(agentData);
+    if (parentCard && removeSatelliteAvatar(parentCard, data.id)) {
+      // Clean up state
+      const state = agentStates.get(data.id);
+      if (state) {
+        if (state.interval) clearInterval(state.interval);
+        if (state.timerInterval) clearInterval(state.timerInterval);
+      }
+      agentStates.delete(data.id);
+      agentAvatars.delete(data.id);
+      // No grid reflow — satellite removed inside parent
+      return;
+    }
+  }
+
   const card = document.querySelector(`[data-agent-id="${data.id}"]`);
   if (!card) return;
+
+  // Clean up satellite children inside this card (if this is a parent being removed)
+  const tray = card.querySelector('.satellite-tray');
+  if (tray) {
+    const minis = tray.querySelectorAll('.mini-avatar');
+    minis.forEach(mini => {
+      const childId = mini.dataset.agentId;
+      animationManager.stop(childId);
+      const childState = agentStates.get(childId);
+      if (childState) {
+        if (childState.interval) clearInterval(childState.interval);
+        if (childState.timerInterval) clearInterval(childState.timerInterval);
+      }
+      agentStates.delete(childId);
+    });
+  }
 
   // Clean up animation memory
   animationManager.stop(data.id);
@@ -134,147 +341,63 @@ function updateGridLayout() {
     };
   });
 
-  const mains = cardDataList.filter(item => !item.data.isSubagent && !item.data.isTeammate);
-  const others = cardDataList.filter(item => item.data.isSubagent || item.data.isTeammate);
-  const fallbackSubList = [...others];
+  // Satellite children are inside parent cards, not in the grid.
+  // Only main agents + orphan children (whose parent hasn't arrived yet) need grid cells.
+  const gridCards = cardDataList.filter(item => {
+    // If this agent is a satellite candidate and its parent card exists, skip it
+    // (it should be inside the parent's tray, not standalone)
+    if (isSatelliteCandidate(item.data)) {
+      const parentCard = findParentCard(item.data);
+      if (parentCard) return false;
+    }
+    return true;
+  });
+
+  const mains = gridCards.filter(item => !item.data.isSubagent && !item.data.isTeammate);
+  const orphans = gridCards.filter(item => item.data.isSubagent || item.data.isTeammate);
 
   mains.sort((a, b) => (a.data.projectPath || '').localeCompare(b.data.projectPath || ''));
 
+  // Remove all children except idleContainer
   Array.from(agentGrid.children).forEach(child => {
     if (child !== idleContainer) {
       agentGrid.removeChild(child);
     }
   });
 
-  const needsDisambiguation = mains.length > 1;
-
   let col = 1;
-  let currentRow = 1;
-  let maxRowInBatch = 1;
+  const currentRow = 1;
 
+  // Place main agents (single row)
   mains.forEach(mainItem => {
     const proj = mainItem.data.projectPath;
 
     const typeTag = mainItem.card.querySelector('.type-tag');
-    let label = 'Main';
-    if (needsDisambiguation) {
-      const basename = proj ? proj.replace(/[\\/]+$/, '').split(/[\\/]/).pop() : '?';
-      const sameProjMains = mains.filter(m => m.data.projectPath === proj);
-      if (sameProjMains.length > 1) {
-        label = `Main:${basename}:${(mainItem.data.id || '').slice(0, 4)}`;
-      } else {
-        label = `Main:${basename}`;
-      }
-    }
+    const basename = proj ? proj.replace(/[\\/]+$/, '').split(/[\\/]/).pop() : 'Main';
+    let label = basename;
     if (typeTag) typeTag.textContent = label;
 
-    const mySubs = [];
-    for (let i = fallbackSubList.length - 1; i >= 0; i--) {
-      const sub = fallbackSubList[i];
-      if (sub.data.parentId === mainItem.data.id) {
-        mySubs.push(sub);
-        fallbackSubList.splice(i, 1);
-      }
-    }
-
-    mySubs.reverse();
-
-    if (col > 10) {
-      col = 1;
-      currentRow = maxRowInBatch + 1;
-      maxRowInBatch = currentRow;
-    }
-
-    const bgBox = document.createElement('div');
-    bgBox.className = 'agent-party-bg';
-    bgBox.style.gridColumn = col;
-    bgBox.style.gridRow = `${currentRow} / span ${1 + mySubs.length}`;
-    agentGrid.appendChild(bgBox);
+    if (col > 10) { col = 1; }
 
     mainItem.card.classList.remove('group-start');
     mainItem.card.style.gridColumn = col;
     mainItem.card.style.gridRow = currentRow;
     agentGrid.appendChild(mainItem.card);
 
-    mySubs.forEach((s, sIdx) => {
-      const subRow = currentRow + 1 + sIdx;
-      s.card.classList.remove('group-start');
-      s.card.style.gridColumn = col;
-      s.card.style.gridRow = subRow;
-      agentGrid.appendChild(s.card);
-      if (subRow > maxRowInBatch) maxRowInBatch = subRow;
-    });
-
     col++;
   });
 
-  // Group remaining items by teamName, including subs whose parent has a teamName
-  const teamGroups = new Map();
-  const noTeam = [];
-  fallbackSubList.forEach(s => {
-    let tn = s.data.teamName;
-    if (!tn && s.data.parentId) {
-      const parent = window.lastAgents?.find(a => a.id === s.data.parentId);
-      if (parent && parent.teamName) tn = parent.teamName;
-    }
-    if (tn) {
-      if (!teamGroups.has(tn)) teamGroups.set(tn, []);
-      teamGroups.get(tn).push(s);
-    } else {
-      noTeam.push(s);
-    }
-  });
+  // Place orphan children (parent not yet arrived) as standalone cards
+  orphans.forEach(item => {
+    if (col > 10) { col = 1; }
 
-  // Sort within teams: teammates first, then subs
-  teamGroups.forEach((members) => {
-    members.sort((a, b) => {
-      const aIsSub = !!a.data.isSubagent;
-      const bIsSub = !!b.data.isSubagent;
-      if (aIsSub !== bIsSub) return aIsSub ? 1 : -1;
-      return 0;
-    });
-  });
-
-  // Render team groups (same layout as main+subs)
-  teamGroups.forEach((members) => {
-    if (col > 10) {
-      col = 1;
-      currentRow = maxRowInBatch + 1;
-      maxRowInBatch = currentRow;
-    }
-
-    const bgBox = document.createElement('div');
-    bgBox.className = 'agent-party-bg';
-    bgBox.style.gridColumn = col;
-    bgBox.style.gridRow = `${currentRow} / span ${members.length}`;
-    agentGrid.appendChild(bgBox);
-
-    members.forEach((m, idx) => {
-      const row = currentRow + idx;
-      m.card.classList.remove('group-start');
-      m.card.style.gridColumn = col;
-      m.card.style.gridRow = row;
-      agentGrid.appendChild(m.card);
-      if (row > maxRowInBatch) maxRowInBatch = row;
-    });
+    item.card.classList.remove('group-start');
+    item.card.style.gridColumn = col;
+    item.card.style.gridRow = currentRow;
+    agentGrid.appendChild(item.card);
 
     col++;
   });
-
-  // Remaining standalone cards (no team)
-  noTeam.forEach(s => {
-    if (col > 10) {
-      col = 1;
-      currentRow = maxRowInBatch + 1;
-      maxRowInBatch = currentRow;
-    }
-    s.card.classList.remove('group-start');
-    s.card.style.gridColumn = col;
-    s.card.style.gridRow = currentRow;
-    agentGrid.appendChild(s.card);
-    col++;
-  });
-
 }
 
 // Window resize (called only on agent add/remove, 500ms throttle)

@@ -160,7 +160,7 @@ function createHookProcessor({ agentManager, sessionPids, debugLog, detectClaude
       case 'PostToolUseFailure':
         if (agentManager) {
           const agent = agentManager.getAgent(sessionId);
-          if (agent) agentManager.updateAgent({ ...agent, sessionId, state: 'Help', currentTool: data.tool_name || null }, 'hook');
+          if (agent) agentManager.updateAgent({ ...agent, sessionId, state: 'Error', currentTool: data.tool_name || null }, 'hook');
         }
         break;
 

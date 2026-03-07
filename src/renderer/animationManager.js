@@ -3,12 +3,12 @@
  */
 
 const animationManager = {
-  animations: new Map(), // agentId -> { agentId, element, animName, sequence, frameIdx, lastTime, rafId }
+  animations: new Map(), // agentId -> { agentId, element, animName, sequence, frameIdx, lastTime, rafId, scale }
 
-  start(agentId, element, animName) {
+  start(agentId, element, animName, scale = 1.0) {
     // Skip if the same animation is already running (avoid rAF interruption -> flickering)
     const existing = this.animations.get(agentId);
-    if (existing && existing.animName === animName) return;
+    if (existing && existing.animName === animName && existing.scale === scale) return;
 
     this.stop(agentId);
 
@@ -19,8 +19,8 @@ const animationManager = {
     const firstFrame = sequence.frames[0];
     const col = firstFrame % SHEET.cols;
     const row = Math.floor(firstFrame / SHEET.cols);
-    const x = col * -SHEET.width;
-    const y = row * -SHEET.height;
+    const x = col * -SHEET.width * scale;
+    const y = row * -SHEET.height * scale;
     element.style.backgroundPosition = `${x}px ${y}px`;
 
     const animation = {
@@ -28,6 +28,7 @@ const animationManager = {
       element,
       animName,
       sequence,
+      scale,
       frameIdx: 0,
       lastTime: performance.now(),
       rafId: null
@@ -64,8 +65,9 @@ const animationManager = {
         const frameNum = animation.sequence.frames[animation.frameIdx];
         const col = frameNum % SHEET.cols;
         const row = Math.floor(frameNum / SHEET.cols);
-        const x = col * -SHEET.width;
-        const y = row * -SHEET.height;
+        const s = animation.scale;
+        const x = col * -SHEET.width * s;
+        const y = row * -SHEET.height * s;
         animation.element.style.backgroundPosition = `${x}px ${y}px`;
 
         animation.lastTime = currentTime;
@@ -92,17 +94,17 @@ const animationManager = {
   }
 };
 
-function drawFrame(element, frameIndex) {
+function drawFrame(element, frameIndex, scale = 1.0) {
   if (!element) return;
   const col = frameIndex % SHEET.cols;
   const row = Math.floor(frameIndex / SHEET.cols);
-  const x = col * -SHEET.width;
-  const y = row * -SHEET.height;
+  const x = col * -SHEET.width * scale;
+  const y = row * -SHEET.height * scale;
   element.style.backgroundPosition = `${x}px ${y}px`;
 }
 
-function playAnimation(agentId, element, animName) {
-  animationManager.start(agentId, element, animName);
+function playAnimation(agentId, element, animName, scale = 1.0) {
+  animationManager.start(agentId, element, animName, scale);
 
   const state = agentStates.get(agentId) || {};
   state.animName = animName;

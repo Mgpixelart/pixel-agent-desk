@@ -83,15 +83,19 @@ describe('getWindowSizeForAgents', () => {
   });
 
   test('handles team agents (subagents/teammates)', () => {
+    // Satellite layout: subagents with parentId are embedded in parent card,
+    // so they don't add grid columns but parent gets extra height
     const teamAgents = Array.from({ length: 5 }, (_, i) => ({
       id: `agent-${i}`,
       projectPath: '/project1',
       isSubagent: i > 0,
-      isTeammate: false
+      isTeammate: false,
+      parentId: i > 0 ? 'agent-0' : null
     }));
 
     const size = getWindowSizeForAgents(teamAgents);
     expect(size.width).toBeGreaterThan(150);
+    // Parent with satellites gets extra height (SATELLITE_EXTRA_H = 40)
     expect(size.height).toBeGreaterThan(170);
   });
 
