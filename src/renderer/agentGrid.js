@@ -32,7 +32,8 @@ function addSatelliteAvatar(parentCard, agent) {
   const config = stateConfig[agent.state] || stateConfig['Waiting'];
   playAnimation(agent.id, mini, config.anim, MINI_AVATAR_SCALE);
 
-  updateChildBadge(parentCard);
+  // Satellite added — card height changed, resize window
+  requestDynamicResize();
 }
 
 /** Update a satellite mini avatar's state (border color, tooltip, animation) */
@@ -72,26 +73,11 @@ function removeSatelliteAvatar(parentCard, agentId) {
   mini.classList.add('removing');
   setTimeout(() => {
     mini.remove();
-    updateChildBadge(parentCard);
+    // Satellite removed — card height changed, resize window
+    requestDynamicResize();
   }, 200);
 
   return true;
-}
-
-/** Update the child count badge on a parent card */
-function updateChildBadge(parentCard) {
-  const badge = parentCard.querySelector('.child-count-badge');
-  if (!badge) return;
-
-  const tray = parentCard.querySelector('.satellite-tray');
-  const count = tray ? tray.querySelectorAll('.mini-avatar:not(.removing)').length : 0;
-
-  if (count > 0) {
-    badge.textContent = `x${count}`;
-    badge.style.display = '';
-  } else {
-    badge.style.display = 'none';
-  }
 }
 
 /** Migrate existing standalone cards into satellites when a parent arrives late */
@@ -370,13 +356,6 @@ function updateGridLayout() {
 
   // Place main agents (single row)
   mains.forEach(mainItem => {
-    const proj = mainItem.data.projectPath;
-
-    const typeTag = mainItem.card.querySelector('.type-tag');
-    const basename = proj ? proj.replace(/[\\/]+$/, '').split(/[\\/]/).pop() : 'Main';
-    let label = basename;
-    if (typeTag) typeTag.textContent = label;
-
     if (col > 10) { col = 1; }
 
     mainItem.card.classList.remove('group-start');

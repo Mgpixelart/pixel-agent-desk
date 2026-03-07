@@ -156,12 +156,6 @@ function createMiniAvatar(agent) {
   return mini;
 }
 
-function createChildBadge() {
-  const badge = document.createElement('span');
-  badge.className = 'child-count-badge';
-  return badge;
-}
-
 function createAgentCard(agent) {
   const card = document.createElement('div');
   card.className = 'agent-card';
@@ -202,22 +196,15 @@ function createAgentCard(agent) {
     character.style.backgroundImage = `url('./public/characters/${assignedAvatar}')`;
   }
 
-  // Card type distinction (badge and border)
-  let typeLabel = 'Main';
-  let typeClass = 'type-main';
-  if (agent.isSubagent) {
-    typeLabel = agent.agentType ? agent.agentType : 'Sub';
-    typeClass = 'type-sub';
-  } else if (agent.isTeammate) {
-    typeLabel = agent.teammateName || 'Team';
-    typeClass = 'type-team';
-  }
+  // Card type class (for CSS color distinction only)
+  const typeClass = agent.isSubagent ? 'type-sub' : (agent.isTeammate ? 'type-team' : 'type-main');
   card.classList.add(typeClass);
 
-  // Top badge
+  // Top badge — unified to project basename
+  const basename = agent.projectPath ? agent.projectPath.replace(/[\\/]+$/, '').split(/[\\/]/).pop() : '';
   const typeTag = document.createElement('span');
   typeTag.className = `type-tag ${typeClass}`;
-  typeTag.textContent = typeLabel;
+  typeTag.textContent = basename || 'Agent';
   typeTag.title = agent.projectPath || '';
   card.appendChild(typeTag);
 
@@ -237,16 +224,12 @@ function createAgentCard(agent) {
   // Satellite tray (for mini child avatars)
   const satelliteTray = createSatelliteTray();
 
-  // Child count badge (absolute, hidden by default)
-  const childBadge = createChildBadge();
-
-  // Assemble card
+  // Assemble card (satellite tray at top, above type-tag)
+  card.appendChild(satelliteTray);
   card.appendChild(bubble);
   card.appendChild(timerEl);
   card.appendChild(character);
-  card.appendChild(satelliteTray);
   card.appendChild(nameBadge);
-  card.appendChild(childBadge);
 
   // Terminal focus button
   const focusBtn = document.createElement('button');

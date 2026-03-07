@@ -64,19 +64,27 @@ function getWindowSizeForAgents(agentsOrCount) {
 
     if (gridCount <= 1 && agents.length <= 1) return { width: 150, height: 150 };
 
-    // Count parents that have satellite children (need extra height)
-    const parentsWithSatellites = new Set();
+    // Count satellite children per parent → calculate extra row height
+    const satellitesPerParent = new Map();
     agents.forEach(a => {
       if (isSatellite(a)) {
-        parentsWithSatellites.add(a.parentId);
+        satellitesPerParent.set(a.parentId, (satellitesPerParent.get(a.parentId) || 0) + 1);
       }
+    });
+
+    // Each satellite row (3 per row) adds ~34px height
+    const SATS_PER_ROW = 3;
+    const SAT_ROW_H = 34;
+    let satelliteExtraH = 0;
+    satellitesPerParent.forEach(satCount => {
+      satelliteExtraH += Math.ceil(satCount / SATS_PER_ROW) * SAT_ROW_H;
     });
 
     const cols = Math.min(Math.max(gridCount, 1), maxCols);
     const rows = Math.ceil(Math.max(gridCount, 1) / maxCols);
 
     const width = Math.max(220, cols * CARD_W + (cols - 1) * GAP + OUTER);
-    const height = BASE_H + Math.max(0, rows - 1) * 170 + (parentsWithSatellites.size * SATELLITE_EXTRA_H);
+    const height = BASE_H + Math.max(0, rows - 1) * 170 + satelliteExtraH;
 
     return { width, height };
   }
