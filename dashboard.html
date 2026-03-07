@@ -188,36 +188,7 @@
       /* Slightly darker than sidebar for depth */
     }
 
-    .topbar {
-      height: 60px;
-      border-bottom: 1px solid var(--color-border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 24px;
-      background: var(--color-bg);
-    }
 
-    .search-mock {
-      background: var(--color-card);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
-      padding: 6px 12px;
-      font-size: 0.8rem;
-      color: var(--color-text-muted);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      width: 240px;
-    }
-
-    .topbar-actions {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 0.8rem;
-      color: var(--color-text-muted);
-    }
 
     .disconnect-banner {
       background: var(--color-error-dim);
@@ -750,26 +721,7 @@
 
     <!-- Main Content Wrapper -->
     <main class="main-area">
-      <!-- Top Utility Bar -->
-      <header class="topbar">
-        <div class="search-mock">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          Search resources...
-          <span
-            style="margin-left:auto; font-size:0.6rem; border:1px solid var(--color-border); padding:2px 4px; border-radius:3px;">⌘K</span>
-        </div>
-        <div class="topbar-actions">
-          <span>v3.0.0</span>
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
-          <div style="width:24px;height:24px;border-radius:50%;background:var(--color-border);"></div>
-        </div>
-      </header>
+
 
       <div id="disconnectBanner" class="disconnect-banner" style="display:none;">
         Network disconnected. Attempting to restore websocket connection...
