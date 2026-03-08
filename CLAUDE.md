@@ -62,6 +62,32 @@ SessionStart hook → agent created (Waiting) → 10s grace period
            3. Zombie sweep: process count < agent count → oldest removed
 ```
 
+### Sprite Sheet Format
+
+Avatar files in `public/characters/avatar_*.webp` — **384×576px, 8 cols × 9 rows = 72 frames (48×64 each)**
+
+```
+Row 0: front_idle(0-3)      front_walk(4-7)
+Row 1: front_sit_idle(8-11) front_sit_work(12-15)
+Row 2: left_idle(16-19)     left_walk(20-23)
+Row 3: left_sit_idle(24-27) left_sit_work(28-31)
+Row 4: right_idle(32-35)    right_walk(36-39)
+Row 5: right_sit_idle(40-43) right_sit_work(44-47)
+Row 6: back_idle(48-51)     back_walk(52-55)
+Row 7: back_sit_idle(56-59) back_sit_work(60-63)
+Row 8: front_done_dance(64-67) front_alert_jump(68-71)
+```
+
+**Taskbar renderer** (`ANIM_SEQUENCES` in `renderer/config.js`):
+- Working/Thinking → `front_done_dance` (64-67)
+- Done/Error/Help  → `front_alert_jump` (68-71)
+- Waiting          → `front_idle` (0-3)
+
+**Office canvas** (`SPRITE_FRAMES` in `office/office-config.js`):
+- Walk/idle use directional keys: `walk_{dir}`, `{dir}_idle`
+- Desk seated: `sit_{dir}` (idle) or `sit_work_{dir}` (working)
+- Done at idle zone: `IDLE_SEAT_MAP` per spot id (18,28→right / 24→dance / 19,29→left / rest→down)
+
 ### Known Limitation: PID Detection on Windows
 
 - Windows에서 Claude가 JSONL 파일을 열어놓지 않아 transcript_path → PID 감지 실패 가능
