@@ -9,67 +9,13 @@ body {
   background: #050709;
   width: 100vw;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* ─── Titlebar (always visible, drag region) ─── */
-.pip-titlebar {
-  -webkit-app-region: drag;
-  height: 28px;
-  min-height: 28px;
-  background: #0d1117;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 6px 0 10px;
-}
-
-.pip-title-label {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.02em;
-}
-
-.pip-controls {
-  -webkit-app-region: no-drag;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.pip-ctrl-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.12s;
-}
-
-.pip-ctrl-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.pip-ctrl-close:hover {
-  background: rgba(248, 81, 73, 0.8);
-  color: #fff;
-}
-
-/* ─── Canvas ─── */
-.pip-canvas-wrap {
-  flex: 1;
-  overflow: hidden;
-  background: #050709;
+body.dragging {
+  cursor: grabbing;
 }
 
 #office-canvas {
@@ -78,4 +24,56 @@ body {
   height: 100%;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  pointer-events: none;
+}
+
+/* ─── Hover Controls Overlay ─── */
+.pip-overlay {
+  position: fixed;
+  top: 6px;
+  right: 6px;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+body:hover .pip-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pip-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  border-radius: 6px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pip-ctrl-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+
+.pip-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.pip-ctrl-close:hover {
+  background: rgba(248, 81, 73, 0.8);
+  color: #fff;
 }

@@ -1,9 +1,40 @@
 /**
  * PiP Window Logic
+ * JS-based drag (bypasses -webkit-app-region bugs on Windows),
  * SSE connection, agent sync, window controls
  */
 
 (function () {
+  const api = window.pipAPI;
+
+  // ─── JS-based Window Drag ───
+  let dragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+
+  document.addEventListener('mousedown', (e) => {
+    // Don't start drag on control buttons
+    if (e.target.closest('.pip-controls')) return;
+    dragging = true;
+    dragStartX = e.screenX;
+    dragStartY = e.screenY;
+    document.body.classList.add('dragging');
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dx = e.screenX - dragStartX;
+    const dy = e.screenY - dragStartY;
+    dragStartX = e.screenX;
+    dragStartY = e.screenY;
+    if (api && api.dragWindow) api.dragWindow(dx, dy);
+  });
+
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    document.body.classList.remove('dragging');
+  });
+
   // ─── SSE Connection ───
   let sseSource = null;
   let sseDelay = 1000;
@@ -50,8 +81,6 @@
   }
 
   // ─── Window Controls ───
-  const api = window.pipAPI;
-
   document.getElementById('pipMinBtn').addEventListener('click', () => {
     if (api && api.minimize) api.minimize();
   });
@@ -61,11 +90,7 @@
   });
 
   document.getElementById('pipCloseBtn').addEventListener('click', () => {
-    if (api && api.close) {
-      api.close();
-    } else {
-      window.close();
-    }
+    if (api && api.close) api.close();
   });
 
   // ─── Boot ───

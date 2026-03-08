@@ -9,9 +9,10 @@
 </head>
 
 <body>
-  <!-- Titlebar (always visible, drag region) -->
-  <div class="pip-titlebar">
-    <span class="pip-title-label">Office</span>
+  <canvas id="office-canvas"></canvas>
+
+  <!-- Hover controls overlay -->
+  <div class="pip-overlay" id="pipOverlay">
     <div class="pip-controls">
       <button class="pip-ctrl-btn" id="pipMinBtn" title="Minimize">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="6" x2="10" y2="6"/></svg>
@@ -23,11 +24,6 @@
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
       </button>
     </div>
-  </div>
-
-  <!-- Canvas -->
-  <div class="pip-canvas-wrap">
-    <canvas id="office-canvas"></canvas>
   </div>
 
   <!-- Office Engine Scripts (same as dashboard.html) -->

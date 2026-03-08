@@ -179,7 +179,14 @@ function registerIpcHandlers({ agentManager, sessionPids, windowManager, debugLo
 
   ipcMain.on('pip-back-to-dashboard', () => {
     windowManager.closePipWindow();
-    // Dashboard will restore canvas via pip-state-changed(false) sent by closePipWindow
+  });
+
+  ipcMain.on('pip-drag', (event, dx, dy) => {
+    const pw = windowManager.pipWindow;
+    if (pw && !pw.isDestroyed()) {
+      const [x, y] = pw.getPosition();
+      pw.setPosition(x + dx, y + dy);
+    }
   });
 }
 
