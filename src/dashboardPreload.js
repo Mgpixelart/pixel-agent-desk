@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('dashboardAPI', {
 
   // PiP controls
   togglePip: () => ipcRenderer.invoke('toggle-pip'),
+  isPipOpen: () => ipcRenderer.invoke('is-pip-open'),
 
   onPipStateChanged: (callback) => {
     const listener = (event, isOpen) => callback(isOpen);

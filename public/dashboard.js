@@ -653,6 +653,13 @@ function setupPipToggle() {
       setPipMode(isOpen);
     });
   }
+
+  // Check if PiP is already open on dashboard load (e.g. dashboard was reopened)
+  if (typeof dashboardAPI !== 'undefined' && dashboardAPI.isPipOpen) {
+    dashboardAPI.isPipOpen().then((isOpen) => {
+      if (isOpen) setPipMode(true);
+    });
+  }
 }
 
 // ─── BOOT ───

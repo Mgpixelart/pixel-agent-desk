@@ -168,25 +168,13 @@ function registerIpcHandlers({ agentManager, sessionPids, windowManager, debugLo
     }
   });
 
-  ipcMain.on('pip-close', () => {
-    windowManager.closePipWindow();
-  });
-
-  ipcMain.on('pip-minimize', () => {
-    const pw = windowManager.pipWindow;
-    if (pw && !pw.isDestroyed()) pw.minimize();
-  });
-
   ipcMain.on('pip-back-to-dashboard', () => {
     windowManager.closePipWindow();
   });
 
-  ipcMain.on('pip-drag', (event, dx, dy) => {
+  ipcMain.handle('is-pip-open', () => {
     const pw = windowManager.pipWindow;
-    if (pw && !pw.isDestroyed()) {
-      const [x, y] = pw.getPosition();
-      pw.setPosition(x + dx, y + dy);
-    }
+    return !!(pw && !pw.isDestroyed());
   });
 }
 

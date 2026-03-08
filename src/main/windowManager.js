@@ -196,10 +196,14 @@ function createWindowManager({ agentManager, sessionScanner, heatmapScanner, deb
       height: pipH,
       x: width - pipW - margin,
       y: height - pipH - margin,
-      frame: false,
+      titleBarStyle: 'hidden',
+      titleBarOverlay: {
+        color: '#0d1117',
+        symbolColor: '#8b949e',
+        height: 28
+      },
       alwaysOnTop: true,
       resizable: true,
-      minimizable: false,
       maximizable: false,
       minWidth: 200,
       minHeight: 200,
