@@ -12,8 +12,8 @@ Pixel Agent Desk is a standalone Electron app that listens to [Claude Code](http
 
 | | | |
 |---|---|---|
-| ![](docs/screenshot-1.png) | ![](docs/screenshot-2.png) | ![](docs/screenshot-3.png) |
-| ![](docs/screenshot-4.png) | ![](docs/screenshot-5.png) | |
+| ![](docs/screenshot-1.png) | ![](docs/screenshot-2.png) | ![](docs/screenshot-4.png) |
+| ![](docs/screenshot-5.png) | | |
 
 ## Highlights
 
