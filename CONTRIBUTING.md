@@ -56,7 +56,7 @@ These constraints exist by design. Do not change them:
 
 - **IPC channel names** must remain stable (renderer relies on them)
 - **Hook schema** must keep `additionalProperties: true` (future-proofing for new Claude Code fields)
-- **Avatar file list** must stay synchronized between `src/renderer/config.js` and `src/office/office-config.js`
+- **Avatar file list** is defined in `public/shared/avatars.json` and `public/shared/sprite-frames.json` (single source of truth) — do not duplicate in individual modules
 - **Agent lifecycle** is PID-based only — do not add manual dismiss or timer-based removal
 
 ## Art Assets

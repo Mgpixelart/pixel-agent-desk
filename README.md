@@ -23,6 +23,7 @@ Pixel Agent Desk is a standalone Electron app that listens to [Claude Code](http
 - **Activity Heatmap** — GitHub-style contribution grid showing daily agent session frequency
 - **Token Analytics** — Per-session and aggregate token usage, cost estimates, model breakdowns
 - **Terminal Focus** — Click any avatar to bring its terminal window to the foreground
+- **PiP Mode** — Always-on-top floating window so your pixel office stays visible while you work
 - **Auto Recovery** — Running sessions are automatically restored on app restart
 - **Sub-agents & Teams** — Full support for Claude Code sub-agents and team mode
 
