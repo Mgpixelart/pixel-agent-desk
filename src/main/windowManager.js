@@ -3,7 +3,7 @@
  * Main window, dashboard window, keep-alive, resize, dashboard server management
  */
 
-const { BrowserWindow, screen } = require('electron');
+const { BrowserWindow, screen, shell } = require('electron');
 const path = require('path');
 
 function createWindowManager({ agentManager, sessionScanner, heatmapScanner, debugLog, adaptAgentToDashboard, errorHandler, getWindowSizeForAgents }) {
@@ -146,6 +146,11 @@ function createWindowManager({ agentManager, sessionScanner, heatmapScanner, deb
 
       // Load via HTTP server (instead of file://) — needed for serving office module static files
       dashboardWindow.loadURL('http://localhost:3000/');
+
+      dashboardWindow.webContents.setWindowOpenHandler(({ url }) => {
+        shell.openExternal(url);
+        return { action: 'deny' };
+      });
 
       dashboardWindow.webContents.on('did-finish-load', () => {
         debugLog('[MissionControl] Window loaded successfully');
