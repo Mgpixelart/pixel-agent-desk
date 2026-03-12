@@ -138,6 +138,7 @@ function getJsonlMtime(jsonlPath) {
 }
 
 // Zombie sweep: compare process count vs main agent count, remove oldest by mtime
+const ZOMBIE_MTIME_FRESH_MS = 120000; // Don't remove agents whose jsonl was modified within 2 minutes
 let _zombieSweepRunning = false;
 function zombieSweep(agentManager, debugLog) {
   if (_zombieSweepRunning) return;
@@ -154,16 +155,28 @@ function zombieSweep(agentManager, debugLog) {
     const excess = mainCount - processCount;
     debugLog(`[Live] Zombie sweep: ${processCount} processes, ${mainCount} agents → ${excess} excess`);
 
-    // Sort by jsonl mtime ascending (oldest first)
+    const now = Date.now();
+    // Sort by jsonl mtime ascending (oldest first), but skip agents with recent mtime
     const sorted = mainAgents
       .map(a => ({ agent: a, mtime: getJsonlMtime(a.jsonlPath) }))
       .sort((a, b) => a.mtime - b.mtime);
 
-    for (let i = 0; i < excess; i++) {
-      const { agent } = sorted[i];
-      debugLog(`[Live] Zombie sweep: removing ${agent.id.slice(0, 8)} (mtime=${new Date(sorted[i].mtime).toISOString()})`);
+    let removed = 0;
+    for (let i = 0; i < sorted.length && removed < excess; i++) {
+      const { agent, mtime } = sorted[i];
+      if (mtime > 0 && (now - mtime) < ZOMBIE_MTIME_FRESH_MS) {
+        debugLog(`[Live] Zombie sweep: skipping ${agent.id.slice(0, 8)} (mtime ${Math.round((now - mtime) / 1000)}s ago, still fresh)`);
+        continue;
+      }
+      debugLog(`[Live] Zombie sweep: removing ${agent.id.slice(0, 8)} (mtime=${mtime > 0 ? new Date(mtime).toISOString() : 'missing'})`);
       sessionPids.delete(agent.id);
       agentManager.removeAgent(agent.id);
+      removed++;
+    }
+    if (removed < excess) {
+      debugLog(`[Live] Zombie sweep: removed ${removed} of ${excess} excess agents; remaining agents appear fresh or were already handled.`);
+    } else {
+      debugLog(`[Live] Zombie sweep: removed all ${removed} excess agents.`);
     }
   });
 }
