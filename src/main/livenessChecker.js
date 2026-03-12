@@ -143,7 +143,7 @@ function zombieSweep(agentManager, debugLog) {
   if (_zombieSweepRunning) return;
   _zombieSweepRunning = true;
 
-  const mainAgents = agentManager.getAllAgents().filter(a => !a.isSubagent);
+  const mainAgents = agentManager.getAllAgents().filter(a => !a.isSubagent && !a.id.startsWith('ollama-') && !a.id.startsWith('cursor-'));
   const mainCount = mainAgents.length;
   if (mainCount <= 1) { _zombieSweepRunning = false; return; }
 
@@ -181,6 +181,9 @@ function startLivenessChecker({ agentManager, debugLog }) {
   const livenessCheckId = setInterval(async () => {
     if (!agentManager) return;
     for (const agent of agentManager.getAllAgents()) {
+      // Ollama/Cursor agents are managed by their own scanners, not PID-based liveness
+      if (agent.id.startsWith('ollama-') || agent.id.startsWith('cursor-')) continue;
+
       if (agent.firstSeen && (Date.now() - agent.firstSeen) < GRACE_MS) continue;
 
       const pid = sessionPids.get(agent.id);
