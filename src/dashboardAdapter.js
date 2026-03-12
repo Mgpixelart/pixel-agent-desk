@@ -48,6 +48,8 @@ function extractProjectName(projectPath) {
  * @returns {string} Agent type: 'main', 'subagent', or 'teammate'
  */
 function determineAgentType(agent) {
+  if (agent.isCursor) return agent.isSubagent ? 'cursor-subagent' : 'cursor';
+  if (agent.isOllama) return 'ollama';
   if (agent.isSubagent) return 'subagent';
   if (agent.isTeammate) return 'teammate';
   return 'main';

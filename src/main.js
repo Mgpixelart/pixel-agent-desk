@@ -10,6 +10,8 @@ const fs = require('fs');
 const AgentManager = require('./agentManager');
 const SessionScanner = require('./sessionScanner');
 const HeatmapScanner = require('./heatmapScanner');
+const OllamaScanner = require('./ollamaScanner');
+const CursorScanner = require('./cursorScanner');
 const { adaptAgentToDashboard } = require('./dashboardAdapter');
 const errorHandler = require('./errorHandler');
 const { getWindowSizeForAgents } = require('./utils');
@@ -80,6 +82,8 @@ process.env.ELECTRON_DISABLE_LOGGING = '1';
 let agentManager = null;
 let sessionScanner = null;
 let heatmapScanner = null;
+let ollamaScanner = null;
+let cursorScanner = null;
 let windowManager = null;
 let hookProcessor = null;
 let livenessIntervals = null;
@@ -128,6 +132,14 @@ app.whenReady().then(() => {
   // 2.5. Start heatmap scanner
   heatmapScanner = new HeatmapScanner(debugLog);
   heatmapScanner.start(300_000);
+
+  // 2.6. Start Ollama scanner (detects locally running Ollama models)
+  ollamaScanner = new OllamaScanner(agentManager, debugLog);
+  ollamaScanner.start(5_000);
+
+  // 2.7. Start Cursor scanner (detects active Cursor IDE agent sessions)
+  cursorScanner = new CursorScanner(agentManager, debugLog);
+  cursorScanner.start(5_000);
 
   // 3. Create hook processor
   hookProcessor = createHookProcessor({
@@ -284,6 +296,14 @@ app.on('before-quit', () => {
   if (heatmapScanner) {
     heatmapScanner.stop();
     debugLog('[Main] HeatmapScanner stopped');
+  }
+  if (ollamaScanner) {
+    ollamaScanner.stop();
+    debugLog('[Main] OllamaScanner stopped');
+  }
+  if (cursorScanner) {
+    cursorScanner.stop();
+    debugLog('[Main] CursorScanner stopped');
   }
   if (windowManager) {
     windowManager.closeDashboardWindow();
