@@ -535,6 +535,108 @@ describe('livenessChecker', () => {
       Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
     });
 
+    test('zombie sweep skips agents with recent jsonl mtime (freshness guard)', () => {
+      const origPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+
+      // 2 main agents but 0 processes
+      mockAgentManager.getAllAgents.mockReturnValue([
+        { id: 'agent-1', isSubagent: false, jsonlPath: '/tmp/a.jsonl' },
+        { id: 'agent-2', isSubagent: false, jsonlPath: '/tmp/b.jsonl' },
+      ]);
+
+      // Both have very recent mtime (within 2-minute freshness window)
+      const now = Date.now();
+      fs.statSync.mockImplementation((p) => {
+        if (p.includes('a.jsonl')) return { mtimeMs: now - 5000 };  // 5s ago
+        if (p.includes('b.jsonl')) return { mtimeMs: now - 10000 }; // 10s ago
+        return { mtimeMs: 0 };
+      });
+
+      // pgrep returns 0 processes
+      execFile.mockImplementation((cmd, args, opts, cb) => {
+        if (cmd === 'pgrep' && args.includes('-fc')) {
+          cb(null, '0\n');
+        }
+      });
+
+      livenessModule.startLivenessChecker({ agentManager: mockAgentManager, debugLog });
+      jest.advanceTimersByTime(30000);
+
+      // Both agents should be kept (fresh mtime protects them)
+      expect(mockAgentManager.removeAgent).not.toHaveBeenCalled();
+
+      Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+    });
+
+    test('zombie sweep removes stale agents but keeps fresh ones', () => {
+      const origPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+
+      // 3 agents but 0 processes
+      mockAgentManager.getAllAgents.mockReturnValue([
+        { id: 'agent-1', isSubagent: false, jsonlPath: '/tmp/a.jsonl' },
+        { id: 'agent-2', isSubagent: false, jsonlPath: '/tmp/b.jsonl' },
+        { id: 'agent-3', isSubagent: false, jsonlPath: '/tmp/c.jsonl' },
+      ]);
+
+      const now = Date.now();
+      fs.statSync.mockImplementation((p) => {
+        if (p.includes('a.jsonl')) return { mtimeMs: 1000 };        // ancient → stale
+        if (p.includes('b.jsonl')) return { mtimeMs: now - 5000 };  // 5s ago → fresh
+        if (p.includes('c.jsonl')) return { mtimeMs: 2000 };        // ancient → stale
+        return { mtimeMs: 0 };
+      });
+
+      // 0 processes → 3 excess
+      execFile.mockImplementation((cmd, args, opts, cb) => {
+        if (cmd === 'pgrep' && args.includes('-fc')) {
+          cb(null, '0\n');
+        }
+      });
+
+      livenessModule.startLivenessChecker({ agentManager: mockAgentManager, debugLog });
+      jest.advanceTimersByTime(30000);
+
+      // Only the 2 stale agents removed; fresh agent-2 kept
+      expect(mockAgentManager.removeAgent).toHaveBeenCalledTimes(2);
+      expect(mockAgentManager.removeAgent).toHaveBeenCalledWith('agent-1');
+      expect(mockAgentManager.removeAgent).toHaveBeenCalledWith('agent-3');
+
+      Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+    });
+
+    test('zombie sweep removes agents with mtime=0 (missing jsonl) even if others are fresh', () => {
+      const origPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+
+      mockAgentManager.getAllAgents.mockReturnValue([
+        { id: 'agent-1', isSubagent: false, jsonlPath: null },       // no path → mtime=0
+        { id: 'agent-2', isSubagent: false, jsonlPath: '/tmp/b.jsonl' },
+      ]);
+
+      const now = Date.now();
+      fs.statSync.mockImplementation((p) => {
+        if (p.includes('b.jsonl')) return { mtimeMs: now - 5000 }; // fresh
+        throw new Error('ENOENT');
+      });
+
+      execFile.mockImplementation((cmd, args, opts, cb) => {
+        if (cmd === 'pgrep' && args.includes('-fc')) {
+          cb(null, '0\n');
+        }
+      });
+
+      livenessModule.startLivenessChecker({ agentManager: mockAgentManager, debugLog });
+      jest.advanceTimersByTime(30000);
+
+      // agent-1 (mtime=0) removed, agent-2 (fresh) kept
+      expect(mockAgentManager.removeAgent).toHaveBeenCalledTimes(1);
+      expect(mockAgentManager.removeAgent).toHaveBeenCalledWith('agent-1');
+
+      Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+    });
+
     test('zombie sweep does nothing when process count >= agent count', () => {
       const origPlatform = process.platform;
       Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });

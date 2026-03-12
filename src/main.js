@@ -205,12 +205,6 @@ app.whenReady().then(() => {
       savePersistedState({ agentManager, sessionPids });
     }
 
-    function closeDashboardIfEmpty() {
-      if (agentManager.getAllAgents().length === 0) {
-        windowManager.closeDashboardWindow();
-      }
-    }
-
     agentListeners = {
       onAdded: (agent) => {
         broadcast('agent-added', 'dashboard-agent-added', agent, adaptAgentToDashboard(agent));
@@ -220,11 +214,9 @@ app.whenReady().then(() => {
       },
       onRemoved: (data) => {
         broadcast('agent-removed', 'dashboard-agent-removed', data);
-        closeDashboardIfEmpty();
       },
       onCleaned: (data) => {
         broadcast('agents-cleaned', 'dashboard-agent-removed', data, { type: 'batch', ...data });
-        closeDashboardIfEmpty();
       }
     };
 
