@@ -168,10 +168,15 @@ function zombieSweep(agentManager, debugLog) {
         debugLog(`[Live] Zombie sweep: skipping ${agent.id.slice(0, 8)} (mtime ${Math.round((now - mtime) / 1000)}s ago, still fresh)`);
         continue;
       }
-      debugLog(`[Live] Zombie sweep: removing ${agent.id.slice(0, 8)} (mtime=${new Date(mtime).toISOString()})`);
+      debugLog(`[Live] Zombie sweep: removing ${agent.id.slice(0, 8)} (mtime=${mtime > 0 ? new Date(mtime).toISOString() : 'missing'})`);
       sessionPids.delete(agent.id);
       agentManager.removeAgent(agent.id);
       removed++;
+    }
+    if (removed < excess) {
+      debugLog(`[Live] Zombie sweep: removed ${removed} of ${excess} excess agents; remaining agents appear fresh or were already handled.`);
+    } else {
+      debugLog(`[Live] Zombie sweep: removed all ${removed} excess agents.`);
     }
   });
 }
