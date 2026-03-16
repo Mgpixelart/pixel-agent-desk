@@ -5,6 +5,8 @@
 
 const { BrowserWindow, screen, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 function createWindowManager({ agentManager, sessionScanner, heatmapScanner, debugLog, adaptAgentToDashboard, errorHandler, getWindowSizeForAgents }) {
   let mainWindow = null;
@@ -12,6 +14,25 @@ function createWindowManager({ agentManager, sessionScanner, heatmapScanner, deb
   let pipWindow = null;
   let keepAliveInterval = null;
   let dashboardServer = null;
+
+  const prefsPath = path.join(os.homedir(), '.pixel-agent-desk', 'preferences.json');
+
+  function readMainWindowVisible() {
+    try {
+      const data = JSON.parse(fs.readFileSync(prefsPath, 'utf-8'));
+      return data.mainWindowVisible !== false;
+    } catch {
+      return true;
+    }
+  }
+
+  function writeMainWindowVisible(visible) {
+    const dir = path.dirname(prefsPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const tmpPath = prefsPath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify({ mainWindowVisible: visible }, null, 2), 'utf-8');
+    fs.renameSync(tmpPath, prefsPath);
+  }
 
   function resizeWindowForAgents(agentsOrCount) {
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -244,6 +265,12 @@ function createWindowManager({ agentManager, sessionScanner, heatmapScanner, deb
     pipWindow.on('closed', () => {
       pipWindow = null;
       notifyDashboardPipState(false);
+      // Restore dashboard if it was hidden
+      if (dashboardWindow && !dashboardWindow.isDestroyed() && !dashboardWindow.isVisible()) {
+        dashboardWindow.show();
+        dashboardWindow.focus();
+        debugLog('[MissionControl] Window restored after PiP close');
+      }
       debugLog('[PiP] Window closed');
     });
 
@@ -255,6 +282,35 @@ function createWindowManager({ agentManager, sessionScanner, heatmapScanner, deb
       pipWindow.close();
     }
     pipWindow = null;
+  }
+
+  function hideMainWindow() {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide();
+      debugLog('[Main] Window hidden');
+    }
+    stopKeepAlive();
+    writeMainWindowVisible(false);
+  }
+
+  function showMainWindow() {
+    writeMainWindowVisible(true);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      startKeepAlive();
+      debugLog('[Main] Window shown');
+      return;
+    }
+    createWindow();
+    debugLog('[Main] Window created via toggle');
+  }
+
+  function hideDashboardWindow() {
+    if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+      dashboardWindow.hide();
+      debugLog('[MissionControl] Window hidden');
+    }
   }
 
   function focusDashboardWindow() {
@@ -327,6 +383,10 @@ function createWindowManager({ agentManager, sessionScanner, heatmapScanner, deb
     closeDashboardWindow,
     createPipWindow,
     closePipWindow,
+    hideMainWindow,
+    showMainWindow,
+    readMainWindowVisible,
+    hideDashboardWindow,
     focusDashboardWindow,
     startDashboardServer,
     stopDashboardServer,

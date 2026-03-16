@@ -909,10 +909,16 @@ body {
   background: #1e2328;
 }
 
-/* ─── PiP Toggle Button ─── */
-.pip-toggle-btn {
+/* ─── Panel Header Actions ─── */
+.panel-header-actions {
   margin-left: auto;
-  margin-right: 8px;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.pip-toggle-btn {
   width: 28px;
   height: 28px;
   display: flex;
