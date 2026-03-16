@@ -63,18 +63,21 @@ function detectClaudePidByTranscript(jsonlPath, callback) {
 function detectClaudePidsFallback(callback) {
   const { execFile } = require('child_process');
   if (process.platform === 'win32') {
-    // Search only node.exe (exclude Claude Desktop App's claude.exe)
-    const psCmd = `Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -like '*claude*' } | Select-Object -ExpandProperty ProcessId`;
+    const psCmd = `Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { ($_.Name -eq 'node.exe' -and $_.CommandLine -like '*claude*') -or $_.Name -eq 'claude.exe' } | Select-Object -ExpandProperty ProcessId`;
     execFile('powershell.exe', ['-NoProfile', '-Command', psCmd], { timeout: 6000 }, (err, stdout) => {
       if (err || !stdout) return callback(null);
       const pids = stdout.trim().split('\n').map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p) && p > 0);
       callback(pids.length > 0 ? pids : null);
     });
   } else {
-    execFile('pgrep', ['-f', 'node.*claude'], { timeout: 3000 }, (err, stdout) => {
-      if (err || !stdout) return callback(null);
-      const pids = stdout.trim().split('\n').map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p) && p > 0);
-      callback(pids.length > 0 ? pids : null);
+    // Try native binary first, then node-based
+    execFile('pgrep', ['-x', 'claude'], { timeout: 3000 }, (err, stdout) => {
+      const nativePids = (!err && stdout) ? stdout.trim().split('\n').map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p) && p > 0) : [];
+      execFile('pgrep', ['-f', 'node.*claude'], { timeout: 3000 }, (err2, stdout2) => {
+        const nodePids = (!err2 && stdout2) ? stdout2.trim().split('\n').map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p) && p > 0) : [];
+        const allPids = [...new Set([...nativePids, ...nodePids])];
+        callback(allPids.length > 0 ? allPids : null);
+      });
     });
   }
 }
@@ -112,14 +115,21 @@ function retryPidDetection(sessionId, agentManager, debugLog) {
 function countClaudeProcesses(callback) {
   const { execFile } = require('child_process');
   if (process.platform === 'win32') {
-    const psCmd = `(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -like '*claude*' }).Count`;
+    const psCmd = `(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { ($_.Name -eq 'node.exe' -and $_.CommandLine -like '*claude*') -or $_.Name -eq 'claude.exe' }).Count`;
     execFile('powershell.exe', ['-NoProfile', '-Command', psCmd], { timeout: 6000 }, (err, stdout) => {
       if (err || !stdout) return callback(0);
       callback(parseInt(stdout.trim(), 10) || 0);
     });
   } else {
-    execFile('pgrep', ['-fc', 'node.*claude'], { timeout: 3000 }, (err, stdout) => {
-      callback(parseInt((stdout || '').trim(), 10) || 0);
+    // Count native binary + node-based, deduplicated
+    execFile('pgrep', ['-x', 'claude'], { timeout: 3000 }, (err, stdout) => {
+      const nativePids = (!err && stdout) ? stdout.trim().split('\n').filter(p => p.trim()).length : 0;
+      execFile('pgrep', ['-f', 'node.*claude'], { timeout: 3000 }, (err2, stdout2) => {
+        const nodePids = (!err2 && stdout2) ? stdout2.trim().split('\n').filter(p => p.trim()) : [];
+        const nativeSet = (!err && stdout) ? new Set(stdout.trim().split('\n').map(p => p.trim())) : new Set();
+        const uniqueNodePids = nodePids.filter(p => !nativeSet.has(p.trim())).length;
+        callback(nativePids + uniqueNodePids);
+      });
     });
   }
 }

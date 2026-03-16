@@ -6,10 +6,14 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #050709; overflow: hidden; width: 100vw; height: 100vh; }
-    #office-canvas {
-      display: block;
+    .canvas-wrapper {
       width: 100%;
       height: 100%;
+      overflow: hidden;
+    }
+    #office-canvas {
+      display: block;
+      transform-origin: top left;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
     }
@@ -60,7 +64,9 @@
   </style>
 </head>
 <body>
-  <canvas id="office-canvas"></canvas>
+  <div class="canvas-wrapper" id="canvasWrapper">
+    <canvas id="office-canvas"></canvas>
+  </div>
 
   <!-- Hover Overlay -->
   <div class="pip-overlay">
@@ -125,12 +131,24 @@
         });
       }
 
+      function fitCanvas() {
+        var canvas = document.getElementById('office-canvas');
+        if (!canvas || !canvas.width) return;
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        var scale = Math.min(vw / canvas.width, vh / canvas.height);
+        canvas.style.transform = 'scale(' + scale + ')';
+      }
+
+      window.addEventListener('resize', fitCanvas);
+
       function boot() {
         console.log('[PiP] boot start');
         initOffice().then(function () {
           console.log('[PiP] office initialized, canvas:',
             document.getElementById('office-canvas').width, 'x',
             document.getElementById('office-canvas').height);
+          fitCanvas();
           connectSSE();
         }).catch(function (e) {
           console.error('[PiP] init failed:', e);

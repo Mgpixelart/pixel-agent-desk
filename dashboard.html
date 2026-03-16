@@ -10,7 +10,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/public/dashboard.css">
+  <link rel="stylesheet" href="/public/dashboard.css?v=2">
 </head>
 
 <body>
@@ -105,9 +105,17 @@
               <div class="panel-header">
                 Operational Floorplan
                 <span class="panel-header-badge">LIVE</span>
-                <button class="pip-toggle-btn" id="pipToggleBtn" title="Picture-in-Picture">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="11" rx="1.5"/><rect x="8" y="7" width="6" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
-                </button>
+                <div class="panel-header-actions">
+                  <button class="pip-toggle-btn" id="pipToggleBtn" title="Picture-in-Picture">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="11" rx="1.5"/><rect x="8" y="7" width="6" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+                  </button>
+                  <button class="pip-toggle-btn" id="pipOnlyBtn" title="PiP only (hide dashboard)">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="8" y="7" width="6" height="5" rx="1" fill="currentColor" stroke="none"/><line x1="3" y1="4" x2="7" y2="8" stroke-linecap="round"/><line x1="7" y1="4" x2="3" y2="8" stroke-linecap="round"/></svg>
+                  </button>
+                  <button class="pip-toggle-btn" id="toggleMainWindowBtn" title="Toggle floating avatars">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/></svg>
+                  </button>
+                </div>
               </div>
               <div class="panel-body">
                 <canvas id="office-canvas"></canvas>
@@ -233,7 +241,7 @@
   <script src="/src/office/office-init.js?v=6"></script>
 
   <!-- Application Logic -->
-  <script src="/public/dashboard.js"></script>
+  <script src="/public/dashboard.js?v=4"></script>
 </body>
 
 </html>

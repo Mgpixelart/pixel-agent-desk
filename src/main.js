@@ -190,27 +190,24 @@ app.whenReady().then(() => {
   }
 
   // 9. Create UI
-  windowManager.createWindow();
+  const dashboardOnly = process.argv.includes('--dashboard-only');
+  const skipMainWindow = dashboardOnly || !windowManager.readMainWindowVisible();
 
-  // Send current state when renderer is ready
-  ipcMain.once('renderer-ready', () => {
-    debugLog('[Main] renderer-ready event received!');
+  function broadcast(mainChannel, dashChannel, data, dashData) {
+    const mw = windowManager.mainWindow;
+    if (mw && !mw.isDestroyed()) mw.webContents.send(mainChannel, data);
+    const dw = windowManager.dashboardWindow;
+    if (dw && !dw.isDestroyed()) dw.webContents.send(dashChannel, dashData !== undefined ? dashData : data);
+    savePersistedState({ agentManager, sessionPids });
+  }
 
-    // Helper: send to main + dashboard windows, then persist state
-    function broadcast(mainChannel, dashChannel, data, dashData) {
-      const mw = windowManager.mainWindow;
-      if (mw && !mw.isDestroyed()) mw.webContents.send(mainChannel, data);
-      const dw = windowManager.dashboardWindow;
-      if (dw && !dw.isDestroyed()) dw.webContents.send(dashChannel, dashData !== undefined ? dashData : data);
-      savePersistedState({ agentManager, sessionPids });
+  function closeDashboardIfEmpty() {
+    if (!skipMainWindow && agentManager.getAllAgents().length === 0) {
+      windowManager.closeDashboardWindow();
     }
+  }
 
-    function closeDashboardIfEmpty() {
-      if (agentManager.getAllAgents().length === 0) {
-        windowManager.closeDashboardWindow();
-      }
-    }
-
+  function registerAgentListeners() {
     agentListeners = {
       onAdded: (agent) => {
         broadcast('agent-added', 'dashboard-agent-added', agent, adaptAgentToDashboard(agent));
@@ -232,23 +229,45 @@ app.whenReady().then(() => {
     agentManager.on('agent-updated', agentListeners.onUpdated);
     agentManager.on('agent-removed', agentListeners.onRemoved);
     agentManager.on('agents-cleaned', agentListeners.onCleaned);
+  }
 
-    // Send sessions that arrived before ready and recovered data
-    const allAgents = agentManager.getAllAgents();
-    if (allAgents.length > 0) {
-      debugLog(`[Main] Sending ${allAgents.length} agents to newly ready renderer`);
-      const mw = windowManager.mainWindow;
-      allAgents.forEach(agent => {
-        mw.webContents.send('agent-added', agent);
-      });
-      windowManager.resizeWindowForAgents(allAgents);
+  if (skipMainWindow) {
+    debugLog('[Main] Skipping floating avatar window' + (dashboardOnly ? ' (--dashboard-only)' : ' (preference)'));
+    windowManager.createDashboardWindow();
+    if (windowManager.dashboardWindow) {
+      windowManager.dashboardWindow.on('closed', () => app.quit());
     }
-
+    registerAgentListeners();
     hookProcessor.flushPendingStarts();
-  });
+  } else {
+    windowManager.createWindow();
+
+    ipcMain.once('renderer-ready', () => {
+      debugLog('[Main] renderer-ready event received!');
+      registerAgentListeners();
+
+      const allAgents = agentManager.getAllAgents();
+      if (allAgents.length > 0) {
+        debugLog(`[Main] Sending ${allAgents.length} agents to newly ready renderer`);
+        const mw = windowManager.mainWindow;
+        allAgents.forEach(agent => {
+          mw.webContents.send('agent-added', agent);
+        });
+        windowManager.resizeWindowForAgents(allAgents);
+      }
+
+      hookProcessor.flushPendingStarts();
+    });
+  }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) windowManager.createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      if (skipMainWindow) {
+        windowManager.createDashboardWindow();
+      } else {
+        windowManager.createWindow();
+      }
+    }
   });
 });
 

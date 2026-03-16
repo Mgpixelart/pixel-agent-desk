@@ -168,6 +168,56 @@ function registerIpcHandlers({ agentManager, sessionPids, windowManager, debugLo
     }
   });
 
+  ipcMain.handle('pip-and-hide-dashboard', async () => {
+    try {
+      const pw = windowManager.pipWindow;
+      if (!pw || pw.isDestroyed()) {
+        windowManager.createPipWindow();
+      }
+      windowManager.hideDashboardWindow();
+      return { success: true };
+    } catch (error) {
+      debugLog(`[PiP] Error pip-and-hide: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ─── Main Window Toggle ───
+  ipcMain.handle('toggle-main-window', async () => {
+    try {
+      const mw = windowManager.mainWindow;
+      if (mw && !mw.isDestroyed() && mw.isVisible()) {
+        windowManager.hideMainWindow();
+        return { visible: false };
+      } else {
+        const wasNull = !mw || mw.isDestroyed();
+        windowManager.showMainWindow();
+        // If a new window was created, send existing agents once it's ready
+        if (wasNull) {
+          ipcMain.once('renderer-ready', () => {
+            debugLog('[Main] renderer-ready from toggled main window');
+            const allAgents = agentManager.getAllAgents();
+            const newMw = windowManager.mainWindow;
+            if (newMw && !newMw.isDestroyed()) {
+              allAgents.forEach(agent => newMw.webContents.send('agent-added', agent));
+              windowManager.resizeWindowForAgents(allAgents);
+            }
+          });
+        }
+        return { visible: true };
+      }
+    } catch (error) {
+      debugLog(`[Main] Error toggle-main-window: ${error.message}`);
+      return { visible: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('get-main-window-visible', async () => {
+    const mw = windowManager.mainWindow;
+    const visible = mw != null && !mw.isDestroyed() && mw.isVisible();
+    return { visible };
+  });
+
   ipcMain.on('pip-close', () => {
     windowManager.closePipWindow();
   });

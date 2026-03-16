@@ -606,6 +606,7 @@ document.querySelectorAll('.nav-item').forEach(b => {
 // ─── PiP TOGGLE & STATE ───
 (function () {
   var pipBtn = document.getElementById('pipToggleBtn');
+  var pipOnlyBtn = document.getElementById('pipOnlyBtn');
   var pipPlaceholder = document.getElementById('pipPlaceholder');
   var pipStopBtn = document.getElementById('pipStopBtn');
   var officeCanvas = document.getElementById('office-canvas');
@@ -624,6 +625,14 @@ document.querySelectorAll('.nav-item').forEach(b => {
     });
   }
 
+  if (pipOnlyBtn) {
+    pipOnlyBtn.addEventListener('click', function () {
+      if (typeof dashboardAPI !== 'undefined' && dashboardAPI.pipAndHideDashboard) {
+        dashboardAPI.pipAndHideDashboard();
+      }
+    });
+  }
+
   if (pipStopBtn) {
     pipStopBtn.addEventListener('click', function () {
       if (typeof dashboardAPI !== 'undefined' && dashboardAPI.togglePip) {
@@ -638,6 +647,32 @@ document.querySelectorAll('.nav-item').forEach(b => {
       setPipState(isOpen);
     });
   }
+})();
+
+// ─── Main Window Toggle ───
+(function () {
+  var toggleBtn = document.getElementById('toggleMainWindowBtn');
+  if (!toggleBtn) return;
+
+  function setToggleState(visible) {
+    toggleBtn.classList.toggle('active', visible);
+    toggleBtn.title = visible ? 'Hide floating avatars' : 'Show floating avatars';
+  }
+
+  // Query initial state
+  if (typeof dashboardAPI !== 'undefined' && dashboardAPI.getMainWindowVisible) {
+    dashboardAPI.getMainWindowVisible().then(function (result) {
+      setToggleState(result.visible);
+    });
+  }
+
+  toggleBtn.addEventListener('click', function () {
+    if (typeof dashboardAPI !== 'undefined' && dashboardAPI.toggleMainWindow) {
+      dashboardAPI.toggleMainWindow().then(function (result) {
+        setToggleState(result.visible);
+      });
+    }
+  });
 })();
 
 // ─── BOOT ───
