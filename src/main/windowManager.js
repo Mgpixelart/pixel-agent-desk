@@ -220,8 +220,8 @@ function createWindowManager({ agentManager, sessionScanner, heatmapScanner, deb
     }
 
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-    const pipW = 480;
-    const pipH = 450;
+    const pipW = 432;
+    const pipH = 400;
 
     pipWindow = new BrowserWindow({
       width: pipW,
